@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/goods_entry.css">
+{% endblock %}
+
+{% block content %}
+<div class="ge-page">
+    <div class="ge-section ge-register">
+        <div class="ge-section-header">
+            <i class="bi bi-plus-circle"></i>
+            <span>入库登记</span>
+        </div>
+        <form id="ge-form" class="ge-form">
+            {% csrf_token %}
+            <div class="ge-form-grid">
+                <div class="ge-form-group">
+                    <label>物资名称 <span class="ge-required">*</span></label>
+                    <input type="text" name="material_name" class="input-tech" placeholder="输入物资名称" required>
+                </div>
+                <div class="ge-form-group">
+                    <label>品类 <span class="ge-required">*</span></label>
+                    <select name="category" id="ge-category" class="input-tech" required>
+                        <option value="">-- 选择品类 --</option>
+                    </select>
+                </div>
+                <div class="ge-form-group">
+                    <label>品种 <span class="ge-required">*</span></label>
+                    <select name="variety" id="ge-variety" class="input-tech" required>
+                        <option value="">-- 先选择品类 --</option>
+                    </select>
+                </div>
+                <div class="ge-form-group">
+                    <label>数量 <span class="ge-required">*</span></label>
+                    <div class="ge-quantity-wrapper">
+                        <input type="number" name="quantity" id="ge-quantity" class="input-tech" placeholder="0" min="0.01" step="0.01" required>
+                        <div id="ge-inventory-hint" class="ge-inventory-hint"></div>
+                    </div>
+                </div>
+                <div class="ge-form-group">
+                    <label>计量单位 <span class="ge-required">*</span></label>
+                    <select name="unit" id="ge-unit" class="input-tech" required>
+                        <option value="">-- 先选择品类 --</option>
+                    </select>
+                </div>
+                <div class="ge-form-group">
+                    <label>入库日期 <span class="ge-required">*</span></label>
+                    <input type="date" name="entry_date" id="ge-entry-date" class="input-tech" required>
+                </div>
+                <div class="ge-form-group">
+                    <label>经办人 <span class="ge-required">*</span></label>
+                    <input type="text" name="handler" class="input-tech" placeholder="输入经办人" required>
+                </div>
+                <div class="ge-form-group">
+                    <label>供应商</label>
+                    <input type="text" name="supplier" class="input-tech" placeholder="输入供应商">
+                </div>
+                <div class="ge-form-group">
+                    <label>存放库区</label>
+                    <input type="text" name="storage_area" class="input-tech" placeholder="输入存放库区">
+                </div>
+                <div class="ge-form-group ge-form-group-full">
+                    <label>备注</label>
+                    <textarea name="remarks" class="input-tech ge-textarea" placeholder="输入备注信息"></textarea>
+                </div>
+            </div>
+            <div class="ge-form-actions">
+                <button type="reset" class="btn-tech btn-cancel">重置</button>
+                <button type="submit" class="btn-tech">提交入库</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="ge-section ge-records">
+        <div class="ge-section-header">
+            <i class="bi bi-card-list"></i>
+            <span>入库记录</span>
+        </div>
+        <div class="ge-filters">
+            <div class="ge-filter-group">
+                <label>日期区间</label>
+                <input type="date" id="ge-filter-start" class="input-tech">
+                <span class="ge-filter-sep">至</span>
+                <input type="date" id="ge-filter-end" class="input-tech">
+            </div>
+            <div class="ge-filter-group">
+                <label>经办人</label>
+                <input type="text" id="ge-filter-handler" class="input-tech" placeholder="搜索经办人">
+            </div>
+            <div class="ge-filter-group">
+                <label>状态</label>
+                <select id="ge-filter-status" class="input-tech">
+                    <option value="">全部</option>
+                    <option value="effective">有效</option>
+                    <option value="voided">已作废</option>
+                </select>
+            </div>
+            <button id="ge-filter-btn" class="btn-tech">筛选</button>
+        </div>
+
+        <div class="ge-table-wrapper">
+            <table class="ge-table">
+                <thead>
+                    <tr>
+                        <th></th>
+                        <th>入库单号</th>
+                        <th>物资名称</th>
+                        <th>品类</th>
+                        <th>品种</th>
+                        <th>数量</th>
+                        <th>单位</th>
+                        <th>入库日期</th>
+                        <th>经办人</th>
+                        <th>状态</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="ge-table-body">
+                </tbody>
+            </table>
+        </div>
+
+        <div class="ge-pagination">
+            <span id="ge-page-info" class="ge-page-info"></span>
+            <div class="ge-page-btns">
+                <button id="ge-page-prev" class="btn-tech btn-cancel" disabled>&laquo; 上一页</button>
+                <button id="ge-page-next" class="btn-tech btn-cancel" disabled>下一页 &raquo;</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/js/goods_entry.js"></script>
+{% endblock %}

@@ -1,0 +1,313 @@
+.ge-page {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+}
+
+.ge-section {
+    background: var(--panel-bg);
+    border: var(--border-glow);
+    padding: 25px;
+    position: relative;
+}
+
+.ge-section::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+    background: var(--primary-blue);
+    box-shadow: 0 0 10px var(--primary-blue);
+}
+
+.ge-section-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 25px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid rgba(0, 210, 255, 0.15);
+    font-size: 1.1rem;
+    color: var(--primary-blue);
+    letter-spacing: 2px;
+    text-shadow: var(--text-glow);
+}
+
+.ge-form-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px 30px;
+}
+
+.ge-form-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.ge-form-group label {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.7);
+    margin-bottom: 8px;
+    letter-spacing: 1px;
+}
+
+.ge-required {
+    color: #ff4136;
+}
+
+.ge-form-group-full {
+    grid-column: 1 / -1;
+}
+
+.ge-textarea {
+    min-height: 80px;
+    resize: vertical;
+    font-family: inherit;
+}
+
+.ge-quantity-wrapper {
+    position: relative;
+}
+
+.ge-inventory-hint {
+    margin-top: 6px;
+    font-size: 0.78rem;
+    color: rgba(0, 210, 255, 0.8);
+    min-height: 18px;
+    transition: opacity 0.3s;
+}
+
+.ge-form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 15px;
+    margin-top: 25px;
+    padding-top: 20px;
+    border-top: 1px solid rgba(0, 210, 255, 0.1);
+}
+
+.ge-filters {
+    display: flex;
+    align-items: flex-end;
+    gap: 20px;
+    margin-bottom: 20px;
+    padding: 20px;
+    background: rgba(0, 10, 20, 0.5);
+    border: 1px solid rgba(0, 210, 255, 0.1);
+    flex-wrap: wrap;
+}
+
+.ge-filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.ge-filter-group label {
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.5);
+    letter-spacing: 1px;
+}
+
+.ge-filter-group .input-tech {
+    width: 160px;
+    margin-bottom: 0;
+    padding: 8px 12px;
+    font-size: 0.85rem;
+}
+
+.ge-filter-sep {
+    color: rgba(255, 255, 255, 0.3);
+    align-self: flex-end;
+    padding-bottom: 10px;
+}
+
+.ge-table-wrapper {
+    overflow-x: auto;
+}
+
+.ge-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+}
+
+.ge-table thead th {
+    background: rgba(0, 210, 255, 0.08);
+    color: var(--primary-blue);
+    padding: 12px 15px;
+    text-align: left;
+    font-weight: 600;
+    letter-spacing: 1px;
+    border-bottom: 1px solid rgba(0, 210, 255, 0.2);
+    white-space: nowrap;
+}
+
+.ge-table tbody tr {
+    border-bottom: 1px solid rgba(0, 210, 255, 0.08);
+    transition: background 0.2s;
+}
+
+.ge-table tbody tr:hover {
+    background: rgba(0, 210, 255, 0.05);
+}
+
+.ge-table tbody td {
+    padding: 10px 15px;
+    color: rgba(255, 255, 255, 0.8);
+    white-space: nowrap;
+}
+
+.ge-table .ge-expand-btn {
+    background: none;
+    border: none;
+    color: var(--primary-blue);
+    cursor: pointer;
+    font-size: 1rem;
+    padding: 4px;
+    transition: transform 0.3s;
+}
+
+.ge-table .ge-expand-btn.expanded {
+    transform: rotate(90deg);
+}
+
+.ge-status-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    font-size: 0.75rem;
+    letter-spacing: 1px;
+    border-radius: 2px;
+}
+
+.ge-status-effective {
+    background: rgba(0, 210, 255, 0.15);
+    color: var(--primary-blue);
+    border: 1px solid rgba(0, 210, 255, 0.3);
+}
+
+.ge-status-voided {
+    background: rgba(255, 65, 54, 0.15);
+    color: #ff4136;
+    border: 1px solid rgba(255, 65, 54, 0.3);
+}
+
+.ge-void-btn {
+    background: transparent;
+    border: 1px solid rgba(255, 65, 54, 0.5);
+    color: #ff4136;
+    padding: 4px 12px;
+    cursor: pointer;
+    font-size: 0.78rem;
+    transition: all 0.3s;
+}
+
+.ge-void-btn:hover {
+    background: rgba(255, 65, 54, 0.2);
+    box-shadow: 0 0 8px rgba(255, 65, 54, 0.3);
+}
+
+.ge-detail-row td {
+    padding: 0 !important;
+}
+
+.ge-detail-content {
+    padding: 15px 15px 15px 45px;
+    background: rgba(0, 10, 20, 0.6);
+    border-top: 1px solid rgba(0, 210, 255, 0.1);
+    display: none;
+}
+
+.ge-detail-content.active {
+    display: block;
+}
+
+.ge-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px 30px;
+}
+
+.ge-detail-item {
+    font-size: 0.82rem;
+}
+
+.ge-detail-item .ge-detail-label {
+    color: rgba(255, 255, 255, 0.4);
+    margin-bottom: 4px;
+}
+
+.ge-detail-item .ge-detail-value {
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.ge-pagination {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px solid rgba(0, 210, 255, 0.1);
+}
+
+.ge-page-info {
+    font-size: 0.82rem;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.ge-page-btns {
+    display: flex;
+    gap: 10px;
+}
+
+.ge-page-btns .btn-tech {
+    padding: 6px 18px;
+    font-size: 0.82rem;
+}
+
+.ge-empty-row td {
+    text-align: center;
+    padding: 40px;
+    color: rgba(255, 255, 255, 0.3);
+    font-size: 0.9rem;
+}
+
+select.input-tech {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%2300d2ff' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 35px;
+}
+
+select.input-tech option {
+    background: #001020;
+    color: #fff;
+}
+
+@media (max-width: 1200px) {
+    .ge-form-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    .ge-detail-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .ge-form-grid {
+        grid-template-columns: 1fr;
+    }
+    .ge-filters {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .ge-filter-group .input-tech {
+        width: 100%;
+    }
+    .ge-detail-grid {
+        grid-template-columns: 1fr;
+    }
+}

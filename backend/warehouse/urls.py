@@ -5,7 +5,7 @@ urlpatterns = [
     path('login/', views.user_login, name='login'),
     path('logout/', views.user_logout, name='logout'),
     path('', views.dashboard, name='dashboard'),
-    path('goods-entry/', views.menu_page, {'page_name': 'goods-entry'}, name='goods-entry'),
+    path('goods-entry/', views.goods_entry_page, name='goods-entry'),
     path('unit-management/', views.menu_page, {'page_name': 'unit-management'}, name='unit-management'),
     path('category-management/', views.menu_page, {'page_name': 'category-management'}, name='category-management'),
     path('variety-management/', views.menu_page, {'page_name': 'variety-management'}, name='variety-management'),
@@ -15,4 +15,12 @@ urlpatterns = [
     path('approval/', views.menu_page, {'page_name': 'approval'}, name='approval'),
     path('attendance-staff/', views.menu_page, {'page_name': 'attendance-staff'}, name='attendance-staff'),
     path('outbound-staff/', views.menu_page, {'page_name': 'outbound-staff'}, name='outbound-staff'),
+
+    path('api/categories/', views.api_categories, name='api-categories'),
+    path('api/categories/<int:category_id>/varieties/', views.api_varieties_by_category, name='api-varieties-by-category'),
+    path('api/categories/<int:category_id>/units/', views.api_units_by_category, name='api-units-by-category'),
+    path('api/goods-entries/', views.api_goods_entries, name='api-goods-entries'),
+    path('api/goods-entries/create/', views.api_goods_entry_create, name='api-goods-entry-create'),
+    path('api/goods-entries/<int:pk>/void/', views.api_goods_entry_void, name='api-goods-entry-void'),
+    path('api/inventory-hint/', views.api_inventory_hint, name='api-inventory-hint'),
 ]
