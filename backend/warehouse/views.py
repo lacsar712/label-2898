@@ -8,7 +8,7 @@ from django.utils import timezone
 from django.db.models import Q
 import json
 
-from .models import CategoryArchive, VarietyArchive, UnitArchive, GoodsEntry, Unit, MaterialCategory, Variety, GoodsOutbound, QueryTemplate, DailyReport, StockWarningSnapshot, ApprovalRecord
+from .models import CategoryArchive, VarietyArchive, UnitArchive, GoodsEntry, Unit, MaterialCategory, Variety, GoodsOutbound, QueryTemplate, DailyReport, StockWarningSnapshot, ApprovalRecord, AttendanceStaff, AttendanceRecord
 
 
 def user_login(request):
@@ -118,30 +118,30 @@ def api_goods_entries(request):
     page = paginator.get_page(page_num)
 
     items = []
-        for obj in page.object_list:
-            items.append({
-                'id': obj.id,
-                'entry_no': obj.entry_no,
-                'material_name': obj.material_name,
-                'category': obj.category,
-                'variety': obj.variety,
-                'quantity': str(obj.quantity),
-                'unit': obj.unit,
-                'entry_date': obj.entry_date.strftime('%Y-%m-%d'),
-                'handler': obj.handler,
-                'supplier': obj.supplier,
-                'storage_area': obj.storage_area,
-                'remarks': obj.remarks,
-                'status': obj.status,
-                'status_display': obj.get_status_display(),
-                'voided_at': obj.voided_at.strftime('%Y-%m-%d %H:%M:%S') if obj.voided_at else '',
-                'voided_by': obj.voided_by,
-                'created_at': obj.created_at.strftime('%Y-%m-%d %H:%M:%S'),
-                'approval_status': obj.approval_status,
-                'approval_status_display': obj.get_approval_status_display(),
-                'submitted_by': obj.submitted_by.username if obj.submitted_by else '',
-                'submitted_at': obj.submitted_at.strftime('%Y-%m-%d %H:%M:%S') if obj.submitted_at else '',
-            })
+    for obj in page.object_list:
+        items.append({
+            'id': obj.id,
+            'entry_no': obj.entry_no,
+            'material_name': obj.material_name,
+            'category': obj.category,
+            'variety': obj.variety,
+            'quantity': str(obj.quantity),
+            'unit': obj.unit,
+            'entry_date': obj.entry_date.strftime('%Y-%m-%d'),
+            'handler': obj.handler,
+            'supplier': obj.supplier,
+            'storage_area': obj.storage_area,
+            'remarks': obj.remarks,
+            'status': obj.status,
+            'status_display': obj.get_status_display(),
+            'voided_at': obj.voided_at.strftime('%Y-%m-%d %H:%M:%S') if obj.voided_at else '',
+            'voided_by': obj.voided_by,
+            'created_at': obj.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+            'approval_status': obj.approval_status,
+            'approval_status_display': obj.get_approval_status_display(),
+            'submitted_by': obj.submitted_by.username if obj.submitted_by else '',
+            'submitted_at': obj.submitted_at.strftime('%Y-%m-%d %H:%M:%S') if obj.submitted_at else '',
+        })
 
     return JsonResponse({
         'items': items,
@@ -2264,6 +2264,400 @@ def api_approval_pending_stats(request):
             'total_pending': total_pending,
             'overdue_count': overdue_count,
             'is_staff': request.user.is_staff,
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)
+
+
+@login_required
+def attendance_staff_page(request):
+    return render(request, 'pages/attendance_staff_management.html', {'title': '考勤人员管理', 'page_name': 'attendance-staff'})
+
+
+@login_required
+def attendance_staff_detail_page(request, pk):
+    return render(request, 'pages/attendance_staff_detail.html', {'title': '人员详情', 'page_name': 'attendance-staff', 'staff_id': pk})
+
+
+@login_required
+def api_attendance_staff_list(request):
+    try:
+        queryset = AttendanceStaff.objects.all()
+
+        company = request.GET.get('company', '').strip()
+        status = request.GET.get('status', '').strip()
+        name = request.GET.get('name', '').strip()
+
+        if company:
+            queryset = queryset.filter(company=company)
+        if status:
+            queryset = queryset.filter(status=status)
+        if name:
+            queryset = queryset.filter(name__icontains=name)
+
+        queryset = queryset.order_by('-created_at')
+
+        page_num = int(request.GET.get('page', 1))
+        page_size = int(request.GET.get('page_size', 10))
+        paginator = Paginator(queryset, page_size)
+        page = paginator.get_page(page_num)
+
+        items = []
+        for obj in page.object_list:
+            summary = obj.get_attendance_summary()
+            items.append({
+                'id': obj.id,
+                'employee_no': obj.employee_no,
+                'name': obj.name,
+                'company': obj.company,
+                'position': obj.position,
+                'phone': obj.phone,
+                'hire_date': obj.hire_date.strftime('%Y-%m-%d') if obj.hire_date else '',
+                'emergency_contact': obj.emergency_contact,
+                'emergency_phone': obj.emergency_phone,
+                'status': obj.status,
+                'status_display': dict(AttendanceStaff.STATUS_CHOICES).get(obj.status, obj.status),
+                'remarks': obj.remarks,
+                'attendance_summary': summary,
+                'created_at': obj.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                'updated_at': obj.updated_at.strftime('%Y-%m-%d %H:%M:%S'),
+            })
+
+        companies = list(AttendanceStaff.objects.order_by().values_list('company', flat=True).distinct())
+        companies = [c for c in companies if c and c.strip()]
+
+        return JsonResponse({
+            'items': items,
+            'total': paginator.count,
+            'page': page_num,
+            'page_size': page_size,
+            'total_pages': paginator.num_pages,
+            'companies': companies,
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)
+
+
+@login_required
+def api_attendance_staff_detail(request, pk):
+    try:
+        obj = get_object_or_404(AttendanceStaff, pk=pk)
+        summary = obj.get_attendance_summary()
+
+        date_start = request.GET.get('date_start', '').strip()
+        date_end = request.GET.get('date_end', '').strip()
+        att_status = request.GET.get('att_status', '').strip()
+
+        records_query = obj.attendance_records.all()
+        if date_start:
+            records_query = records_query.filter(attendance_date__gte=date_start)
+        if date_end:
+            records_query = records_query.filter(attendance_date__lte=date_end)
+        if att_status:
+            records_query = records_query.filter(attendance_status=att_status)
+
+        records_query = records_query.order_by('-attendance_date')
+
+        record_page = int(request.GET.get('record_page', 1))
+        record_page_size = int(request.GET.get('record_page_size', 20))
+        record_paginator = Paginator(records_query, record_page_size)
+        record_page_obj = record_paginator.get_page(record_page)
+
+        records = []
+        for r in record_page_obj.object_list:
+            records.append({
+                'id': r.id,
+                'attendance_date': r.attendance_date.strftime('%Y-%m-%d'),
+                'check_in_time': r.check_in_time.strftime('%H:%M:%S') if r.check_in_time else '',
+                'check_out_time': r.check_out_time.strftime('%H:%M:%S') if r.check_out_time else '',
+                'work_hours': str(r.work_hours),
+                'attendance_status': r.attendance_status,
+                'attendance_status_display': r.get_attendance_status_display_cn(),
+                'remarks': r.remarks,
+            })
+
+        return JsonResponse({
+            'id': obj.id,
+            'employee_no': obj.employee_no,
+            'name': obj.name,
+            'company': obj.company,
+            'position': obj.position,
+            'phone': obj.phone,
+            'hire_date': obj.hire_date.strftime('%Y-%m-%d') if obj.hire_date else '',
+            'emergency_contact': obj.emergency_contact,
+            'emergency_phone': obj.emergency_phone,
+            'status': obj.status,
+            'status_display': dict(AttendanceStaff.STATUS_CHOICES).get(obj.status, obj.status),
+            'remarks': obj.remarks,
+            'attendance_summary': summary,
+            'records': records,
+            'records_total': record_paginator.count,
+            'records_page': record_page,
+            'records_page_size': record_page_size,
+            'records_total_pages': record_paginator.num_pages,
+            'created_at': obj.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+            'updated_at': obj.updated_at.strftime('%Y-%m-%d %H:%M:%S'),
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)
+
+
+@require_POST
+@login_required
+def api_attendance_staff_create(request):
+    try:
+        data = json.loads(request.body)
+        employee_no = data.get('employee_no', '').strip()
+        name = data.get('name', '').strip()
+        company = data.get('company', '').strip()
+
+        if not employee_no:
+            return JsonResponse({'success': False, 'message': '工号不能为空'}, status=400)
+        if not name:
+            return JsonResponse({'success': False, 'message': '姓名不能为空'}, status=400)
+        if not company:
+            return JsonResponse({'success': False, 'message': '所属连队不能为空'}, status=400)
+        if AttendanceStaff.objects.filter(employee_no=employee_no).exists():
+            return JsonResponse({'success': False, 'message': '工号已存在'}, status=400)
+
+        hire_date_str = data.get('hire_date', '').strip()
+        hire_date = None
+        if hire_date_str:
+            from datetime import datetime
+            try:
+                hire_date = datetime.strptime(hire_date_str, '%Y-%m-%d').date()
+            except ValueError:
+                return JsonResponse({'success': False, 'message': '入职日期格式错误'}, status=400)
+
+        obj = AttendanceStaff.objects.create(
+            employee_no=employee_no,
+            name=name,
+            company=company,
+            position=data.get('position', '').strip(),
+            phone=data.get('phone', '').strip(),
+            hire_date=hire_date,
+            emergency_contact=data.get('emergency_contact', '').strip(),
+            emergency_phone=data.get('emergency_phone', '').strip(),
+            status=data.get('status', 'active'),
+            remarks=data.get('remarks', '').strip(),
+        )
+
+        return JsonResponse({
+            'success': True,
+            'id': obj.id,
+            'message': f'考勤人员 {obj.name} 创建成功',
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)
+
+
+@require_POST
+@login_required
+def api_attendance_staff_update(request, pk):
+    try:
+        obj = get_object_or_404(AttendanceStaff, pk=pk)
+        data = json.loads(request.body)
+
+        if data.get('employee_no') and data['employee_no'].strip() != obj.employee_no:
+            return JsonResponse({'success': False, 'message': '工号创建后不可变更'}, status=400)
+
+        name = data.get('name', obj.name).strip()
+        company = data.get('company', obj.company).strip()
+
+        if not name:
+            return JsonResponse({'success': False, 'message': '姓名不能为空'}, status=400)
+        if not company:
+            return JsonResponse({'success': False, 'message': '所属连队不能为空'}, status=400)
+
+        hire_date_str = data.get('hire_date', '').strip()
+        if hire_date_str:
+            from datetime import datetime
+            try:
+                obj.hire_date = datetime.strptime(hire_date_str, '%Y-%m-%d').date()
+            except ValueError:
+                return JsonResponse({'success': False, 'message': '入职日期格式错误'}, status=400)
+        elif 'hire_date' in data and not hire_date_str:
+            obj.hire_date = None
+
+        obj.name = name
+        obj.company = company
+        obj.position = data.get('position', obj.position).strip()
+        obj.phone = data.get('phone', obj.phone).strip()
+        obj.emergency_contact = data.get('emergency_contact', obj.emergency_contact).strip()
+        obj.emergency_phone = data.get('emergency_phone', obj.emergency_phone).strip()
+        obj.status = data.get('status', obj.status)
+        obj.remarks = data.get('remarks', obj.remarks).strip()
+
+        obj.save()
+        return JsonResponse({
+            'success': True,
+            'message': f'考勤人员 {obj.name} 更新成功',
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)
+
+
+@require_POST
+@login_required
+def api_attendance_staff_delete(request, pk):
+    try:
+        obj = get_object_or_404(AttendanceStaff, pk=pk)
+        name = obj.name
+        obj.delete()
+        return JsonResponse({
+            'success': True,
+            'message': f'考勤人员 {name} 删除成功',
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)
+
+
+@login_required
+def api_attendance_staff_template(request):
+    import csv
+    from django.http import HttpResponse
+    from io import StringIO
+
+    try:
+        buffer = StringIO()
+        writer = csv.writer(buffer)
+
+        headers = ['工号', '姓名', '所属连队', '职务', '联系电话', '入职日期', '紧急联系人', '紧急联系电话', '在职状态']
+        writer.writerow(headers)
+
+        sample_row = ['KQ001', '张三', '一连', '库房管理员', '13800138000', '2024-01-15', '李四', '13900139000', '在职']
+        writer.writerow(sample_row)
+
+        csv_content = buffer.getvalue()
+        buffer.close()
+
+        response = HttpResponse(content_type='text/csv; charset=utf-8')
+        filename = '考勤人员导入模板.csv'
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+        response.write('\ufeff'.encode('utf-8'))
+        response.write(csv_content.encode('utf-8'))
+
+        return response
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)
+
+
+@require_POST
+@login_required
+def api_attendance_staff_import(request):
+    import csv
+    from io import TextIOWrapper
+    from datetime import datetime
+
+    try:
+        csv_file = request.FILES.get('csv_file')
+        if not csv_file:
+            return JsonResponse({'success': False, 'message': '请选择 CSV 文件'}, status=400)
+
+        file_data = TextIOWrapper(csv_file, encoding='utf-8-sig')
+        reader = csv.reader(file_data)
+
+        rows = list(reader)
+        if len(rows) < 2:
+            return JsonResponse({'success': False, 'message': 'CSV 文件内容为空'}, status=400)
+
+        header = rows[0]
+        expected_headers = ['工号', '姓名', '所属连队', '职务', '联系电话', '入职日期', '紧急联系人', '紧急联系电话', '在职状态']
+        if header != expected_headers:
+            return JsonResponse({'success': False, 'message': 'CSV 表头格式错误，请使用模板文件'}, status=400)
+
+        success_count = 0
+        fail_count = 0
+        fail_details = []
+
+        status_map = {
+            '在职': 'active',
+            '离职': 'inactive',
+            'active': 'active',
+            'inactive': 'inactive',
+        }
+
+        for idx, row in enumerate(rows[1:], start=2):
+            try:
+                if len(row) < 9:
+                    row = row + [''] * (9 - len(row))
+
+                employee_no = row[0].strip()
+                name = row[1].strip()
+                company = row[2].strip()
+                position = row[3].strip()
+                phone = row[4].strip()
+                hire_date_str = row[5].strip()
+                emergency_contact = row[6].strip()
+                emergency_phone = row[7].strip()
+                status_str = row[8].strip()
+
+                if not employee_no:
+                    raise ValueError('工号不能为空')
+                if not name:
+                    raise ValueError('姓名不能为空')
+                if not company:
+                    raise ValueError('所属连队不能为空')
+
+                if AttendanceStaff.objects.filter(employee_no=employee_no).exists():
+                    raise ValueError(f'工号 {employee_no} 已存在')
+
+                hire_date = None
+                if hire_date_str:
+                    hire_date = datetime.strptime(hire_date_str, '%Y-%m-%d').date()
+
+                status = status_map.get(status_str, 'active')
+
+                AttendanceStaff.objects.create(
+                    employee_no=employee_no,
+                    name=name,
+                    company=company,
+                    position=position,
+                    phone=phone,
+                    hire_date=hire_date,
+                    emergency_contact=emergency_contact,
+                    emergency_phone=emergency_phone,
+                    status=status,
+                )
+
+                success_count += 1
+            except Exception as e:
+                fail_count += 1
+                fail_details.append({
+                    'row': idx,
+                    'employee_no': row[0].strip() if len(row) > 0 else '',
+                    'name': row[1].strip() if len(row) > 1 else '',
+                    'reason': str(e),
+                })
+
+        message = f'导入完成：成功 {success_count} 条'
+        if fail_count > 0:
+            message += f'，失败 {fail_count} 条'
+
+        return JsonResponse({
+            'success': True,
+            'message': message,
+            'success_count': success_count,
+            'fail_count': fail_count,
+            'fail_details': fail_details,
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)
+
+
+@login_required
+def api_attendance_filter_options(request):
+    try:
+        companies = list(AttendanceStaff.objects.order_by().values_list('company', flat=True).distinct())
+        companies = [c for c in companies if c and c.strip()]
+
+        return JsonResponse({
+            'companies': companies,
+            'statuses': [
+                {'value': 'active', 'label': '在职'},
+                {'value': 'inactive', 'label': '离职'},
+            ],
         })
     except Exception as e:
         return JsonResponse({'success': False, 'message': str(e)}, status=400)

@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/attendance_staff_management.css">
+{% endblock %}
+
+{% block content %}
+<div class="asm-page">
+    <div class="asm-section">
+        <div class="asm-section-header">
+            <div class="asm-header-left">
+                <i class="bi bi-people-fill"></i>
+                <span>考勤人员档案</span>
+            </div>
+            <div class="asm-header-right">
+                <button id="asm-template-btn" class="btn-tech btn-cancel">
+                    <i class="bi bi-download"></i> 下载模板
+                </button>
+                <button id="asm-import-btn" class="btn-tech btn-cancel">
+                    <i class="bi bi-upload"></i> 批量导入
+                </button>
+                <button id="asm-add-btn" class="btn-tech">
+                    <i class="bi bi-person-plus-fill"></i> 新增人员
+                </button>
+            </div>
+        </div>
+
+        <div class="asm-filters">
+            <div class="asm-filter-group">
+                <label>姓名搜索</label>
+                <input type="text" id="asm-filter-name" class="input-tech" placeholder="输入姓名模糊搜索">
+            </div>
+            <div class="asm-filter-group">
+                <label>所属连队</label>
+                <select id="asm-filter-company" class="input-tech">
+                    <option value="">全部连队</option>
+                </select>
+            </div>
+            <div class="asm-filter-group">
+                <label>在职状态</label>
+                <select id="asm-filter-status" class="input-tech">
+                    <option value="">全部状态</option>
+                    <option value="active">在职</option>
+                    <option value="inactive">离职</option>
+                </select>
+            </div>
+            <button id="asm-filter-btn" class="btn-tech">
+                <i class="bi bi-funnel"></i> 筛选
+            </button>
+            <button id="asm-reset-btn" class="btn-tech btn-cancel">
+                <i class="bi bi-arrow-clockwise"></i> 重置
+            </button>
+        </div>
+
+        <div class="asm-table-wrapper">
+            <table class="asm-table">
+                <thead>
+                    <tr>
+                        <th>工号</th>
+                        <th>姓名</th>
+                        <th>所属连队</th>
+                        <th>职务</th>
+                        <th>联系电话</th>
+                        <th>入职日期</th>
+                        <th>在职状态</th>
+                        <th>考勤汇总</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="asm-table-body">
+                </tbody>
+            </table>
+        </div>
+
+        <div class="asm-pagination">
+            <span id="asm-page-info" class="asm-page-info"></span>
+            <div class="asm-page-btns">
+                <button id="asm-page-prev" class="btn-tech btn-cancel" disabled>&laquo; 上一页</button>
+                <button id="asm-page-next" class="btn-tech btn-cancel" disabled>下一页 &raquo;</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="asm-form-modal" class="modal-overlay">
+    <div class="modal-tech asm-modal">
+        <h3 id="asm-modal-title">新增考勤人员</h3>
+        <form id="asm-form" class="asm-form">
+            {% csrf_token %}
+            <div class="asm-form-row">
+                <div class="asm-form-group asm-form-group-half">
+                    <label>工号 <span class="asm-required">*</span></label>
+                    <input type="text" name="employee_no" id="asm-input-employee-no" class="input-tech" placeholder="输入工号（全局唯一，创建后不可变更" maxlength="30" required>
+                </div>
+                <div class="asm-form-group asm-form-group-half">
+                    <label>姓名 <span class="asm-required">*</span></label>
+                    <input type="text" name="name" id="asm-input-name" class="input-tech" placeholder="输入姓名" maxlength="50" required>
+                </div>
+            </div>
+            <div class="asm-form-row">
+                <div class="asm-form-group asm-form-group-half">
+                    <label>所属连队 <span class="asm-required">*</span></label>
+                    <input type="text" name="company" id="asm-input-company" class="input-tech" placeholder="例如：一连、二连" maxlength="100" required>
+                </div>
+                <div class="asm-form-group asm-form-group-half">
+                    <label>职务</label>
+                    <input type="text" name="position" id="asm-input-position" class="input-tech" placeholder="例如：库房管理员" maxlength="50">
+                </div>
+            </div>
+            <div class="asm-form-row">
+                <div class="asm-form-group asm-form-group-half">
+                    <label>联系电话</label>
+                    <input type="text" name="phone" id="asm-input-phone" class="input-tech" placeholder="输入联系电话" maxlength="20">
+                </div>
+                <div class="asm-form-group asm-form-group-half">
+                    <label>入职日期</label>
+                    <input type="date" name="hire_date" id="asm-input-hire-date" class="input-tech">
+                </div>
+            </div>
+            <div class="asm-form-row">
+                <div class="asm-form-group asm-form-group-half">
+                    <label>紧急联系人</label>
+                    <input type="text" name="emergency_contact" id="asm-input-emergency-contact" class="input-tech" placeholder="输入紧急联系人姓名" maxlength="50">
+                </div>
+                <div class="asm-form-group asm-form-group-half">
+                    <label>紧急联系电话</label>
+                    <input type="text" name="emergency_phone" id="asm-input-emergency-phone" class="input-tech" placeholder="输入紧急联系电话" maxlength="20">
+                </div>
+            </div>
+            <div class="asm-form-row">
+                <div class="asm-form-group asm-form-group-half">
+                    <label>在职状态</label>
+                    <div class="asm-switch-wrapper">
+                        <label class="asm-switch">
+                            <input type="checkbox" name="status" id="asm-input-status" checked>
+                            <span class="asm-slider"></span>
+                        </label>
+                        <span id="asm-status-label" class="asm-active-label">在职</span>
+                    </div>
+                </div>
+                <div class="asm-form-group asm-form-group-half">
+                </div>
+            </div>
+            <div class="asm-form-group">
+                <label>备注</label>
+                <textarea name="remarks" id="asm-input-remarks" class="input-tech" placeholder="输入备注信息" rows="3" style="resize:vertical"></textarea>
+            </div>
+            <div class="modal-btns">
+                <button type="button" id="asm-form-cancel" class="btn-tech btn-cancel">取消</button>
+                <button type="submit" class="btn-tech">确定</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="asm-import-modal" class="modal-overlay">
+    <div class="modal-tech asm-import-modal">
+        <h3>批量导入考勤人员</h3>
+        <div class="asm-form">
+            <div style="margin-bottom: 15px; text-align: center;">
+                <a href="/api/attendance-staff/template/" class="btn-tech btn-cancel" style="display: inline-flex; align-items: center; gap: 6px; text-decoration: none;">
+                    <i class="bi bi-download"></i> 点击下载导入模板
+                </a>
+            </div>
+            <p style="color: rgba(255,255,255,0.4); font-size: 0.82rem; margin: 15px 0; text-align: center;">
+                请按照模板格式填写数据，支持 UTF-8 编码的 CSV 文件
+            </p>
+
+            <div id="asm-upload-area" class="asm-upload-area">
+                <i class="bi bi-cloud-upload-fill"></i>
+                <p>点击或拖拽 CSV 文件到此处</p>
+                <p class="asm-upload-hint">仅支持 .csv 格式文件</p>
+                <input type="file" id="asm-file-input" class="asm-file-input" accept=".csv">
+            </div>
+
+            <div id="asm-file-info" class="asm-file-info" style="display: none;">
+                <div class="asm-file-name">
+                    <i class="bi bi-file-earmark-spreadsheet"></i>
+                    <span id="asm-selected-name"></span>
+                </div>
+                <button type="button" id="asm-file-remove" class="asm-file-remove">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+
+            <div id="asm-import-result" class="asm-import-result" style="display: none;">
+            </div>
+
+            <div class="modal-btns">
+                <button type="button" id="asm-import-cancel" class="btn-tech btn-cancel">关闭</button>
+                <button type="button" id="asm-import-submit" class="btn-tech" disabled>
+                    <i class="bi bi-upload"></i> 开始导入
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/js/attendance_staff_management.js"></script>
+{% endblock %}

@@ -555,3 +555,108 @@ class ApprovalRecord(models.Model):
 
     def get_action_display(self):
         return dict(self.ACTION_CHOICES).get(self.action, self.action)
+
+
+class AttendanceStaff(models.Model):
+    STATUS_CHOICES = [
+        ('active', '在职'),
+        ('inactive', '离职'),
+    ]
+
+    employee_no = models.CharField(max_length=30, unique=True, verbose_name='工号')
+    name = models.CharField(max_length=50, verbose_name='姓名')
+    company = models.CharField(max_length=100, verbose_name='所属连队')
+    position = models.CharField(max_length=50, blank=True, default='', verbose_name='职务')
+    phone = models.CharField(max_length=20, blank=True, default='', verbose_name='联系电话')
+    hire_date = models.DateField(null=True, blank=True, verbose_name='入职日期')
+    emergency_contact = models.CharField(max_length=50, blank=True, default='', verbose_name='紧急联系人')
+    emergency_phone = models.CharField(max_length=20, blank=True, default='', verbose_name='紧急联系电话')
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='active', verbose_name='在职状态')
+    remarks = models.TextField(blank=True, default='', verbose_name='备注')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
+
+    class Meta:
+        verbose_name = '考勤人员'
+        verbose_name_plural = '考勤人员'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'[{self.employee_no}] {self.name}'
+
+    def clean(self):
+        if self.pk:
+            original = AttendanceStaff.objects.filter(pk=self.pk).first()
+            if original and original.employee_no != self.employee_no:
+                raise ValidationError({'employee_no': '工号创建后不可变更'})
+
+    def get_attendance_summary(self, start_date=None, end_date=None):
+        from django.db.models import Count, Sum, Q
+        records = self.attendance_records.all()
+        if start_date:
+            records = records.filter(attendance_date__gte=start_date)
+        if end_date:
+            records = records.filter(attendance_date__lte=end_date)
+
+        total_days = records.count()
+        present_days = records.filter(attendance_status='present').count()
+        late_days = records.filter(attendance_status='late').count()
+        absent_days = records.filter(attendance_status='absent').count()
+        leave_days = records.filter(attendance_status='leave').count()
+
+        total_hours = 0
+        for r in records:
+            if r.work_hours:
+                total_hours += float(r.work_hours)
+
+        return {
+            'total_days': total_days,
+            'present_days': present_days,
+            'late_days': late_days,
+            'absent_days': absent_days,
+            'leave_days': leave_days,
+            'total_hours': round(total_hours, 2),
+        }
+
+
+class AttendanceRecord(models.Model):
+    ATTENDANCE_STATUS_CHOICES = [
+        ('present', '正常出勤'),
+        ('late', '迟到'),
+        ('early_leave', '早退'),
+        ('absent', '缺勤'),
+        ('leave', '请假'),
+        ('overtime', '加班'),
+    ]
+
+    staff = models.ForeignKey(
+        AttendanceStaff,
+        on_delete=models.CASCADE,
+        related_name='attendance_records',
+        verbose_name='考勤人员'
+    )
+    attendance_date = models.DateField(verbose_name='日期')
+    check_in_time = models.TimeField(null=True, blank=True, verbose_name='签到时间')
+    check_out_time = models.TimeField(null=True, blank=True, verbose_name='签退时间')
+    work_hours = models.DecimalField(max_digits=5, decimal_places=2, default=0, verbose_name='工时(小时)')
+    attendance_status = models.CharField(
+        max_length=15,
+        choices=ATTENDANCE_STATUS_CHOICES,
+        default='present',
+        verbose_name='出勤状态'
+    )
+    remarks = models.CharField(max_length=200, blank=True, default='', verbose_name='备注')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
+
+    class Meta:
+        verbose_name = '考勤记录'
+        verbose_name_plural = '考勤记录'
+        ordering = ['-attendance_date', 'staff__employee_no']
+        unique_together = ('staff', 'attendance_date')
+
+    def __str__(self):
+        return f'{self.staff.name} - {self.attendance_date.strftime("%Y-%m-%d")}'
+
+    def get_attendance_status_display_cn(self):
+        return dict(self.ATTENDANCE_STATUS_CHOICES).get(self.attendance_status, self.attendance_status)

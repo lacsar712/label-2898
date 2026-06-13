@@ -1,0 +1,673 @@
+.asm-page {
+    max-width: 100%;
+}
+
+.asm-section {
+    background: var(--panel-bg);
+    border: var(--border-glow);
+    padding: 30px;
+}
+
+.asm-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid rgba(0, 210, 255, 0.15);
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.asm-header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: var(--primary-blue);
+    font-size: 1.2rem;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+
+.asm-header-left i {
+    font-size: 1.4rem;
+    text-shadow: var(--text-glow);
+}
+
+.asm-header-right {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.asm-filters {
+    display: flex;
+    align-items: flex-end;
+    gap: 20px;
+    margin-bottom: 25px;
+    flex-wrap: wrap;
+}
+
+.asm-filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.asm-filter-group label {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.asm-filter-group .input-tech {
+    width: 200px;
+    margin-bottom: 0;
+}
+
+.asm-table-wrapper {
+    overflow-x: auto;
+    border: 1px solid rgba(0, 210, 255, 0.15);
+    margin-bottom: 20px;
+    background: rgba(0, 10, 25, 0.4);
+}
+
+.asm-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 1100px;
+}
+
+.asm-table thead {
+    background: linear-gradient(90deg, rgba(0, 210, 255, 0.12) 0%, rgba(0, 210, 255, 0.05) 100%);
+    position: relative;
+}
+
+.asm-table thead::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--primary-blue), transparent);
+}
+
+.asm-table th {
+    padding: 14px 16px;
+    text-align: left;
+    color: var(--primary-blue);
+    font-weight: 600;
+    font-size: 0.9rem;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid rgba(0, 210, 255, 0.2);
+    text-transform: uppercase;
+    font-family: 'Consolas', 'Monaco', monospace;
+    white-space: nowrap;
+}
+
+.asm-table td {
+    padding: 14px 16px;
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 0.9rem;
+    border-bottom: 1px solid rgba(0, 210, 255, 0.06);
+    transition: all 0.3s ease;
+    vertical-align: middle;
+}
+
+.asm-table tbody tr {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    cursor: pointer;
+}
+
+.asm-table tbody tr::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+    box-shadow: inset 0 0 30px rgba(0, 210, 255, 0.25), 0 0 20px rgba(0, 210, 255, 0.1);
+}
+
+.asm-table tbody tr:hover::before {
+    opacity: 1;
+}
+
+.asm-table tbody tr:hover {
+    background: rgba(0, 210, 255, 0.08);
+    transform: scale(1.002);
+}
+
+.asm-table tbody tr:hover td {
+    color: #fff;
+}
+
+.asm-row-inactive {
+    filter: saturate(0.3);
+    opacity: 0.6;
+}
+
+.asm-row-inactive td {
+    color: rgba(255, 255, 255, 0.45) !important;
+}
+
+.asm-row-inactive:hover {
+    filter: saturate(0.5);
+    opacity: 0.75;
+}
+
+.asm-code-cell {
+    font-family: 'Consolas', 'Monaco', monospace;
+    color: var(--primary-blue) !important;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+.asm-row-inactive .asm-code-cell {
+    color: rgba(255, 255, 255, 0.45) !important;
+}
+
+.asm-name-cell {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.asm-status-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #00ff88;
+    box-shadow: 0 0 8px #00ff88, 0 0 2px #fff;
+    animation: asm-pulse 2s ease-in-out infinite;
+}
+
+.asm-row-inactive .asm-status-dot {
+    background: #888;
+    box-shadow: none;
+    animation: none;
+}
+
+@keyframes asm-pulse {
+    0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.7;
+        transform: scale(0.9);
+    }
+}
+
+.asm-status-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    font-size: 0.8rem;
+    border-radius: 3px;
+    font-weight: 500;
+}
+
+.asm-status-active {
+    background: rgba(0, 255, 136, 0.12);
+    color: #00ff88;
+    border: 1px solid rgba(0, 255, 136, 0.3);
+}
+
+.asm-status-inactive {
+    background: rgba(153, 153, 153, 0.12);
+    color: #999;
+    border: 1px solid rgba(153, 153, 153, 0.3);
+}
+
+.asm-tag-inactive {
+    display: inline-block;
+    padding: 2px 10px;
+    font-size: 0.75rem;
+    background: rgba(255, 65, 54, 0.15);
+    color: #ff6b6b;
+    border: 1px solid rgba(255, 65, 54, 0.3);
+    border-radius: 3px;
+    letter-spacing: 0.5px;
+    margin-left: 8px;
+}
+
+.asm-company-cell {
+    color: rgba(78, 205, 196, 0.9) !important;
+}
+
+.asm-phone-cell {
+    font-family: 'Consolas', 'Monaco', monospace;
+    color: rgba(255, 255, 255, 0.7) !important;
+}
+
+.asm-summary-cell {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    font-size: 0.78rem;
+}
+
+.asm-summary-chip {
+    padding: 2px 8px;
+    border-radius: 3px;
+    background: rgba(0, 210, 255, 0.08);
+    border: 1px solid rgba(0, 210, 255, 0.15);
+    color: rgba(255, 255, 255, 0.65);
+}
+
+.asm-summary-chip strong {
+    color: var(--primary-blue);
+    font-weight: 600;
+    margin-right: 4px;
+}
+
+.asm-actions {
+    white-space: nowrap;
+    display: flex;
+    gap: 4px;
+    align-items: center;
+}
+
+.asm-action-btn {
+    background: transparent;
+    border: 1px solid rgba(0, 210, 255, 0.2);
+    padding: 5px 10px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    border-radius: 3px;
+    color: rgba(255, 255, 255, 0.7);
+    min-width: 28px;
+    height: 28px;
+}
+
+.asm-action-btn:hover:not(:disabled) {
+    background: rgba(0, 210, 255, 0.15);
+    border-color: var(--primary-blue);
+}
+
+.asm-action-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+.asm-detail-btn {
+    color: var(--primary-blue);
+}
+
+.asm-detail-btn:hover:not(:disabled) {
+    color: #fff;
+    box-shadow: 0 0 8px rgba(0, 210, 255, 0.5);
+}
+
+.asm-edit-btn {
+    color: #4ecdc4;
+}
+
+.asm-edit-btn:hover:not(:disabled) {
+    color: #fff;
+    box-shadow: 0 0 8px rgba(78, 205, 196, 0.5);
+}
+
+.asm-delete-btn {
+    color: #ff6b6b;
+}
+
+.asm-delete-btn:hover:not(:disabled) {
+    color: #fff;
+    background: rgba(255, 65, 54, 0.15);
+    border-color: #ff4136;
+    box-shadow: 0 0 8px rgba(255, 65, 54, 0.5);
+}
+
+.asm-empty-hint {
+    text-align: center;
+    padding: 80px 20px;
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.asm-empty-hint i {
+    font-size: 3rem;
+    color: rgba(0, 210, 255, 0.2);
+    margin-bottom: 15px;
+    display: block;
+}
+
+.asm-empty-hint p {
+    font-size: 0.95rem;
+    font-style: italic;
+}
+
+.asm-pagination {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 15px;
+    border-top: 1px solid rgba(0, 210, 255, 0.1);
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.asm-page-info {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.85rem;
+}
+
+.asm-page-btns {
+    display: flex;
+    gap: 10px;
+}
+
+.asm-modal {
+    max-width: 720px !important;
+    text-align: left !important;
+}
+
+.asm-modal h3 {
+    text-align: center;
+    margin-bottom: 25px;
+}
+
+.asm-form {
+    margin-top: 10px;
+}
+
+.asm-form-group {
+    margin-bottom: 18px;
+}
+
+.asm-form-group label {
+    display: block;
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 0.9rem;
+    margin-bottom: 8px;
+}
+
+.asm-required {
+    color: #ff4136;
+}
+
+.asm-form-group .input-tech {
+    margin-bottom: 0;
+}
+
+.asm-form-group .input-tech:disabled {
+    background: rgba(0, 50, 100, 0.1);
+    color: rgba(255, 255, 255, 0.4);
+    cursor: not-allowed;
+}
+
+.asm-form-row {
+    display: flex;
+    gap: 20px;
+}
+
+.asm-form-group-half {
+    flex: 1;
+}
+
+.asm-form-hint {
+    margin-top: 6px;
+    font-size: 0.78rem;
+    color: rgba(255, 255, 255, 0.4);
+    font-style: italic;
+}
+
+.asm-form .modal-btns {
+    margin-top: 25px;
+}
+
+.asm-switch-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 8px 0;
+}
+
+.asm-switch {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 26px;
+}
+
+.asm-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.asm-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(102, 102, 102, 0.4);
+    border: 1px solid rgba(102, 102, 102, 0.5);
+    transition: .3s;
+    border-radius: 26px;
+}
+
+.asm-slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background: #999;
+    transition: .3s;
+    border-radius: 50%;
+}
+
+.asm-switch input:checked + .asm-slider {
+    background: rgba(0, 255, 136, 0.15);
+    border-color: #00ff88;
+}
+
+.asm-switch input:checked + .asm-slider:before {
+    transform: translateX(24px);
+    background: #00ff88;
+    box-shadow: 0 0 8px #00ff88;
+}
+
+.asm-active-label {
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.asm-import-modal {
+    max-width: 600px !important;
+    text-align: left !important;
+}
+
+.asm-import-modal h3 {
+    text-align: center;
+    margin-bottom: 25px;
+}
+
+.asm-upload-area {
+    border: 2px dashed rgba(0, 210, 255, 0.3);
+    border-radius: 8px;
+    padding: 40px 20px;
+    text-align: center;
+    margin-bottom: 20px;
+    transition: all 0.3s;
+    cursor: pointer;
+    background: rgba(0, 210, 255, 0.03);
+}
+
+.asm-upload-area:hover {
+    border-color: var(--primary-blue);
+    background: rgba(0, 210, 255, 0.08);
+}
+
+.asm-upload-area.dragover {
+    border-color: var(--primary-blue);
+    background: rgba(0, 210, 255, 0.12);
+    box-shadow: inset 0 0 20px rgba(0, 210, 255, 0.15);
+}
+
+.asm-upload-area i {
+    font-size: 3rem;
+    color: rgba(0, 210, 255, 0.3);
+    margin-bottom: 15px;
+    display: block;
+}
+
+.asm-upload-area p {
+    color: rgba(255, 255, 255, 0.6);
+    margin: 0;
+    font-size: 0.9rem;
+}
+
+.asm-upload-area .asm-upload-hint {
+    font-size: 0.78rem;
+    color: rgba(255, 255, 255, 0.35);
+    margin-top: 8px;
+}
+
+.asm-file-input {
+    display: none;
+}
+
+.asm-file-info {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: rgba(0, 210, 255, 0.06);
+    border: 1px solid rgba(0, 210, 255, 0.15);
+    border-radius: 4px;
+    margin-bottom: 20px;
+}
+
+.asm-file-name {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 0.88rem;
+}
+
+.asm-file-name i {
+    color: var(--primary-blue);
+}
+
+.asm-file-remove {
+    background: none;
+    border: none;
+    color: #ff6b6b;
+    cursor: pointer;
+    padding: 4px;
+    transition: all 0.2s;
+}
+
+.asm-file-remove:hover {
+    color: #ff4136;
+    transform: scale(1.1);
+}
+
+.asm-import-result {
+    margin-top: 20px;
+    padding: 15px;
+    border-radius: 4px;
+    background: rgba(0, 10, 25, 0.5);
+    border: 1px solid rgba(0, 210, 255, 0.15);
+}
+
+.asm-import-stats {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+}
+
+.asm-stat-item {
+    flex: 1;
+    min-width: 100px;
+    text-align: center;
+    padding: 12px;
+    border-radius: 4px;
+    background: rgba(0, 210, 255, 0.05);
+}
+
+.asm-stat-value {
+    font-size: 1.5rem;
+    font-weight: bold;
+    font-family: 'Consolas', 'Monaco', monospace;
+    margin-bottom: 4px;
+}
+
+.asm-stat-success {
+    color: #00ff88;
+}
+
+.asm-stat-fail {
+    color: #ff6b6b;
+}
+
+.asm-stat-label {
+    font-size: 0.78rem;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.asm-fail-list {
+    max-height: 200px;
+    overflow-y: auto;
+    margin-top: 10px;
+}
+
+.asm-fail-list-title {
+    font-size: 0.85rem;
+    color: #ff6b6b;
+    margin-bottom: 10px;
+    font-weight: 600;
+}
+
+.asm-fail-item {
+    padding: 8px 12px;
+    background: rgba(255, 65, 54, 0.06);
+    border: 1px solid rgba(255, 65, 54, 0.15);
+    border-radius: 3px;
+    margin-bottom: 6px;
+    font-size: 0.82rem;
+}
+
+.asm-fail-row {
+    color: rgba(255, 255, 255, 0.5);
+    font-family: 'Consolas', 'Monaco', monospace;
+    margin-right: 8px;
+}
+
+.asm-fail-name {
+    color: rgba(255, 255, 255, 0.7);
+    margin-right: 8px;
+}
+
+.asm-fail-reason {
+    color: #ff6b6b;
+}
+
+.asm-detail-link {
+    color: inherit;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.asm-detail-link:hover {
+    color: #fff;
+}

@@ -13,7 +13,8 @@ urlpatterns = [
     path('daily-report/', views.daily_report_page, name='daily-report'),
     path('warning/', views.warning_page, name='warning'),
     path('approval/', views.approval_page, name='approval'),
-    path('attendance-staff/', views.menu_page, {'page_name': 'attendance-staff'}, name='attendance-staff'),
+    path('attendance-staff/', views.attendance_staff_page, name='attendance-staff'),
+    path('attendance-staff/<int:pk>/', views.attendance_staff_detail_page, name='attendance-staff-detail'),
     path('outbound-staff/', views.menu_page, {'page_name': 'outbound-staff'}, name='outbound-staff'),
 
     path('api/categories/', views.api_categories, name='api-categories'),
@@ -74,4 +75,13 @@ urlpatterns = [
     path('api/approval/<int:pk>/reject/', views.api_approval_reject, name='api-approval-reject'),
     path('api/approval/batch-approve/', views.api_approval_batch_approve, name='api-approval-batch-approve'),
     path('api/approval/pending-stats/', views.api_approval_pending_stats, name='api-approval-pending-stats'),
+
+    path('api/attendance-staff/', views.api_attendance_staff_list, name='api-attendance-staff-list'),
+    path('api/attendance-staff/filter-options/', views.api_attendance_filter_options, name='api-attendance-filter-options'),
+    path('api/attendance-staff/create/', views.api_attendance_staff_create, name='api-attendance-staff-create'),
+    path('api/attendance-staff/<int:pk>/', views.api_attendance_staff_detail, name='api-attendance-staff-detail'),
+    path('api/attendance-staff/<int:pk>/update/', views.api_attendance_staff_update, name='api-attendance-staff-update'),
+    path('api/attendance-staff/<int:pk>/delete/', views.api_attendance_staff_delete, name='api-attendance-staff-delete'),
+    path('api/attendance-staff/template/', views.api_attendance_staff_template, name='api-attendance-staff-template'),
+    path('api/attendance-staff/import/', views.api_attendance_staff_import, name='api-attendance-staff-import'),
 ]
