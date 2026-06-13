@@ -8,7 +8,7 @@ from django.utils import timezone
 from django.db.models import Q
 import json
 
-from .models import CategoryArchive, VarietyArchive, UnitArchive, GoodsEntry, Unit, MaterialCategory, Variety, GoodsOutbound, QueryTemplate, DailyReport, StockWarningSnapshot, ApprovalRecord, AttendanceStaff, AttendanceRecord
+from .models import CategoryArchive, VarietyArchive, UnitArchive, GoodsEntry, Unit, MaterialCategory, Variety, GoodsOutbound, QueryTemplate, DailyReport, StockWarningSnapshot, ApprovalRecord, AttendanceStaff, AttendanceRecord, OutboundStaff
 
 
 def user_login(request):
@@ -2659,5 +2659,310 @@ def api_attendance_filter_options(request):
                 {'value': 'inactive', 'label': '离职'},
             ],
         })
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)
+
+
+@login_required
+def outbound_staff_page(request):
+    return render(request, 'pages/outbound_staff_management.html', {'title': '出库人员管理', 'page_name': 'outbound-staff'})
+
+
+@login_required
+def api_outbound_staff_list(request):
+    try:
+        queryset = OutboundStaff.objects.all()
+
+        name = request.GET.get('name', '').strip()
+        status = request.GET.get('status', '').strip()
+        auth_status = request.GET.get('auth_status', '').strip()
+        area = request.GET.get('area', '').strip()
+
+        if name:
+            queryset = queryset.filter(Q(name__icontains=name) | Q(employee_no__icontains=name))
+        if status:
+            queryset = queryset.filter(status=status)
+        if area:
+            queryset = queryset.filter(authorized_areas__icontains=area)
+
+        queryset = queryset.order_by('-created_at')
+
+        page_num = int(request.GET.get('page', 1))
+        page_size = int(request.GET.get('page_size', 10))
+        paginator = Paginator(queryset, page_size)
+        page = paginator.get_page(page_num)
+
+        items = []
+        for obj in page.object_list:
+            auth_status_info = obj.get_authorization_status()
+            areas_display = obj.get_authorized_areas_display()
+            items.append({
+                'id': obj.id,
+                'employee_no': obj.employee_no,
+                'name': obj.name,
+                'authorized_areas': obj.get_authorized_areas_list(),
+                'authorized_areas_display': areas_display,
+                'phone': obj.phone,
+                'authorization_start_date': obj.authorization_start_date.strftime('%Y-%m-%d'),
+                'authorization_end_date': obj.authorization_end_date.strftime('%Y-%m-%d'),
+                'certificate_no': obj.certificate_no,
+                'status': obj.status,
+                'status_display': dict(OutboundStaff.STATUS_CHOICES).get(obj.status, obj.status),
+                'auth_status': auth_status_info['level'],
+                'auth_status_label': auth_status_info['label'],
+                'auth_status_color': auth_status_info['color'],
+                'remarks': obj.remarks,
+                'created_at': obj.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                'updated_at': obj.updated_at.strftime('%Y-%m-%d %H:%M:%S'),
+            })
+
+        if auth_status:
+            filtered_items = [item for item in items if item['auth_status'] == auth_status]
+            items = filtered_items
+            total = len(filtered_items)
+            total_pages = (total + page_size - 1) // page_size if total > 0 else 1
+            start_idx = (page_num - 1) * page_size
+            end_idx = start_idx + page_size
+            items = items[start_idx:end_idx]
+        else:
+            total = paginator.count
+            total_pages = paginator.num_pages
+
+        return JsonResponse({
+            'items': items,
+            'total': total,
+            'page': page_num,
+            'page_size': page_size,
+            'total_pages': total_pages,
+            'storage_areas': [
+                {'value': value, 'label': label}
+                for value, label in OutboundStaff.STORAGE_AREA_CHOICES
+            ],
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)
+
+
+@login_required
+def api_outbound_staff_detail(request, pk):
+    try:
+        obj = get_object_or_404(OutboundStaff, pk=pk)
+        auth_status_info = obj.get_authorization_status()
+
+        return JsonResponse({
+            'id': obj.id,
+            'employee_no': obj.employee_no,
+            'name': obj.name,
+            'authorized_areas': obj.get_authorized_areas_list(),
+            'authorized_areas_display': obj.get_authorized_areas_display(),
+            'phone': obj.phone,
+            'authorization_start_date': obj.authorization_start_date.strftime('%Y-%m-%d'),
+            'authorization_end_date': obj.authorization_end_date.strftime('%Y-%m-%d'),
+            'certificate_no': obj.certificate_no,
+            'status': obj.status,
+            'status_display': dict(OutboundStaff.STATUS_CHOICES).get(obj.status, obj.status),
+            'auth_status': auth_status_info['level'],
+            'auth_status_label': auth_status_info['label'],
+            'auth_status_color': auth_status_info['color'],
+            'remarks': obj.remarks,
+            'created_at': obj.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+            'updated_at': obj.updated_at.strftime('%Y-%m-%d %H:%M:%S'),
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)
+
+
+@require_POST
+@login_required
+def api_outbound_staff_create(request):
+    try:
+        data = json.loads(request.body)
+        employee_no = data.get('employee_no', '').strip()
+        name = data.get('name', '').strip()
+        authorized_areas = data.get('authorized_areas', [])
+
+        if not employee_no:
+            return JsonResponse({'success': False, 'message': '工号不能为空'}, status=400)
+        if not name:
+            return JsonResponse({'success': False, 'message': '姓名不能为空'}, status=400)
+        if not authorized_areas or not isinstance(authorized_areas, list) or len(authorized_areas) == 0:
+            return JsonResponse({'success': False, 'message': '请至少选择一个授权库区'}, status=400)
+        if OutboundStaff.objects.filter(employee_no=employee_no).exists():
+            return JsonResponse({'success': False, 'message': '工号已存在'}, status=400)
+
+        start_date_str = data.get('authorization_start_date', '').strip()
+        end_date_str = data.get('authorization_end_date', '').strip()
+
+        from datetime import datetime
+        try:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+        except ValueError:
+            return JsonResponse({'success': False, 'message': '授权开始日期格式错误'}, status=400)
+
+        try:
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+        except ValueError:
+            return JsonResponse({'success': False, 'message': '授权结束日期格式错误'}, status=400)
+
+        if end_date < start_date:
+            return JsonResponse({'success': False, 'message': '授权结束日期不能早于开始日期'}, status=400)
+
+        valid_areas = [v for v, _ in OutboundStaff.STORAGE_AREA_CHOICES]
+        for area in authorized_areas:
+            if area not in valid_areas:
+                return JsonResponse({'success': False, 'message': f'无效的库区选项: {area}'}, status=400)
+
+        obj = OutboundStaff(
+            employee_no=employee_no,
+            name=name,
+            phone=data.get('phone', '').strip(),
+            authorization_start_date=start_date,
+            authorization_end_date=end_date,
+            certificate_no=data.get('certificate_no', '').strip(),
+            status=data.get('status', 'active'),
+            remarks=data.get('remarks', '').strip(),
+        )
+        obj.set_authorized_areas_list(authorized_areas)
+        obj.save()
+
+        return JsonResponse({
+            'success': True,
+            'id': obj.id,
+            'message': f'出库人员 {obj.name} 创建成功',
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)
+
+
+@require_POST
+@login_required
+def api_outbound_staff_update(request, pk):
+    try:
+        obj = get_object_or_404(OutboundStaff, pk=pk)
+        data = json.loads(request.body)
+
+        if data.get('employee_no') and data['employee_no'].strip() != obj.employee_no:
+            return JsonResponse({'success': False, 'message': '工号创建后不可变更'}, status=400)
+
+        name = data.get('name', obj.name).strip()
+        if not name:
+            return JsonResponse({'success': False, 'message': '姓名不能为空'}, status=400)
+
+        authorized_areas = data.get('authorized_areas', obj.get_authorized_areas_list())
+        if not authorized_areas or not isinstance(authorized_areas, list) or len(authorized_areas) == 0:
+            return JsonResponse({'success': False, 'message': '请至少选择一个授权库区'}, status=400)
+
+        valid_areas = [v for v, _ in OutboundStaff.STORAGE_AREA_CHOICES]
+        for area in authorized_areas:
+            if area not in valid_areas:
+                return JsonResponse({'success': False, 'message': f'无效的库区选项: {area}'}, status=400)
+
+        start_date_str = data.get('authorization_start_date', '').strip()
+        end_date_str = data.get('authorization_end_date', '').strip()
+
+        from datetime import datetime
+        if start_date_str:
+            try:
+                obj.authorization_start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+            except ValueError:
+                return JsonResponse({'success': False, 'message': '授权开始日期格式错误'}, status=400)
+
+        if end_date_str:
+            try:
+                obj.authorization_end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+            except ValueError:
+                return JsonResponse({'success': False, 'message': '授权结束日期格式错误'}, status=400)
+
+        if obj.authorization_end_date < obj.authorization_start_date:
+            return JsonResponse({'success': False, 'message': '授权结束日期不能早于开始日期'}, status=400)
+
+        obj.name = name
+        obj.set_authorized_areas_list(authorized_areas)
+        obj.phone = data.get('phone', obj.phone).strip()
+        obj.certificate_no = data.get('certificate_no', obj.certificate_no).strip()
+        obj.status = data.get('status', obj.status)
+        obj.remarks = data.get('remarks', obj.remarks).strip()
+
+        obj.save()
+        return JsonResponse({
+            'success': True,
+            'message': f'出库人员 {obj.name} 更新成功',
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)
+
+
+@require_POST
+@login_required
+def api_outbound_staff_delete(request, pk):
+    try:
+        obj = get_object_or_404(OutboundStaff, pk=pk)
+        name = obj.name
+        obj.delete()
+        return JsonResponse({
+            'success': True,
+            'message': f'出库人员 {name} 删除成功',
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)
+
+
+@require_POST
+@login_required
+def api_outbound_staff_renew(request, pk):
+    try:
+        obj = get_object_or_404(OutboundStaff, pk=pk)
+        data = json.loads(request.body) if request.body else {}
+        days = int(data.get('days', 90))
+
+        old_end_date = obj.authorization_end_date.strftime('%Y-%m-%d')
+        obj.renew_authorization(days=days)
+        new_end_date = obj.authorization_end_date.strftime('%Y-%m-%d')
+
+        return JsonResponse({
+            'success': True,
+            'message': f'授权已续期 {days} 天',
+            'old_end_date': old_end_date,
+            'new_end_date': new_end_date,
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)
+
+
+@login_required
+def api_outbound_staff_available(request):
+    try:
+        from datetime import date
+        today = date.today()
+
+        queryset = OutboundStaff.objects.filter(
+            status='active',
+            authorization_end_date__gte=today,
+        ).order_by('employee_no')
+
+        items = []
+        for obj in queryset:
+            items.append({
+                'id': obj.id,
+                'employee_no': obj.employee_no,
+                'name': obj.name,
+                'label': f'[{obj.employee_no}] {obj.name}',
+                'authorized_areas': obj.get_authorized_areas_list(),
+                'authorized_areas_display': obj.get_authorized_areas_display(),
+            })
+
+        return JsonResponse(items, safe=False)
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)
+
+
+@login_required
+def api_outbound_staff_storage_areas(request):
+    try:
+        areas = [
+            {'value': value, 'label': label}
+            for value, label in OutboundStaff.STORAGE_AREA_CHOICES
+        ]
+        return JsonResponse(areas, safe=False)
     except Exception as e:
         return JsonResponse({'success': False, 'message': str(e)}, status=400)

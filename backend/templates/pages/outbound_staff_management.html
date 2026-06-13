@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/outbound_staff_management.css">
+{% endblock %}
+
+{% block content %}
+<div class="osm-page">
+    <div class="osm-section">
+        <div class="osm-section-header">
+            <div class="osm-header-left">
+                <i class="bi bi-person-badge-fill"></i>
+                <span>出库人员管理</span>
+            </div>
+            <div class="osm-header-right">
+                <button id="osm-add-btn" class="btn-tech">
+                    <i class="bi bi-person-plus-fill"></i> 新增人员
+                </button>
+            </div>
+        </div>
+
+        <div class="osm-filters">
+            <div class="osm-filter-group">
+                <label>姓名/工号搜索</label>
+                <input type="text" id="osm-filter-name" class="input-tech" placeholder="输入姓名或工号搜索">
+            </div>
+            <div class="osm-filter-group">
+                <label>授权库区</label>
+                <select id="osm-filter-area" class="input-tech">
+                    <option value="">全部库区</option>
+                </select>
+            </div>
+            <div class="osm-filter-group">
+                <label>启用状态</label>
+                <select id="osm-filter-status" class="input-tech">
+                    <option value="">全部状态</option>
+                    <option value="active">启用</option>
+                    <option value="inactive">禁用</option>
+                </select>
+            </div>
+            <div class="osm-filter-group">
+                <label>授权状态</label>
+                <select id="osm-filter-auth" class="input-tech">
+                    <option value="">全部授权</option>
+                    <option value="normal">正常授权</option>
+                    <option value="warning">即将到期</option>
+                    <option value="expired">已过期</option>
+                    <option value="disabled">已禁用</option>
+                </select>
+            </div>
+            <button id="osm-filter-btn" class="btn-tech">
+                <i class="bi bi-funnel"></i> 筛选
+            </button>
+            <button id="osm-reset-btn" class="btn-tech btn-cancel">
+                <i class="bi bi-arrow-clockwise"></i> 重置
+            </button>
+        </div>
+
+        <div class="osm-table-wrapper">
+            <table class="osm-table">
+                <thead>
+                    <tr>
+                        <th>工号</th>
+                        <th>姓名</th>
+                        <th>授权库区</th>
+                        <th>联系电话</th>
+                        <th>授权有效期</th>
+                        <th>资质证书</th>
+                        <th>授权状态</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="osm-table-body">
+                </tbody>
+            </table>
+        </div>
+
+        <div class="osm-pagination">
+            <span id="osm-page-info" class="osm-page-info"></span>
+            <div class="osm-page-btns">
+                <button id="osm-page-prev" class="btn-tech btn-cancel" disabled>&laquo; 上一页</button>
+                <button id="osm-page-next" class="btn-tech btn-cancel" disabled>下一页 &raquo;</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="osm-form-modal" class="modal-overlay">
+    <div class="modal-tech osm-modal">
+        <h3 id="osm-modal-title">新增出库人员</h3>
+        <form id="osm-form" class="osm-form">
+            {% csrf_token %}
+            <div class="osm-form-row">
+                <div class="osm-form-group osm-form-group-half">
+                    <label>工号 <span class="osm-required">*</span></label>
+                    <input type="text" name="employee_no" id="osm-input-employee-no" class="input-tech" placeholder="输入工号（全局唯一，创建后不可变更）" maxlength="30" required>
+                </div>
+                <div class="osm-form-group osm-form-group-half">
+                    <label>姓名 <span class="osm-required">*</span></label>
+                    <input type="text" name="name" id="osm-input-name" class="input-tech" placeholder="输入姓名" maxlength="50" required>
+                </div>
+            </div>
+            <div class="osm-form-row">
+                <div class="osm-form-group osm-form-group-half">
+                    <label>联系电话</label>
+                    <input type="text" name="phone" id="osm-input-phone" class="input-tech" placeholder="输入联系电话" maxlength="20">
+                </div>
+                <div class="osm-form-group osm-form-group-half">
+                    <label>资质证书编号</label>
+                    <input type="text" name="certificate_no" id="osm-input-certificate-no" class="input-tech" placeholder="输入资质证书编号" maxlength="50">
+                </div>
+            </div>
+            <div class="osm-form-group">
+                <label>授权库区 <span class="osm-required">*</span></label>
+                <div id="osm-input-areas" class="osm-checkbox-group">
+                </div>
+            </div>
+            <div class="osm-form-row">
+                <div class="osm-form-group osm-form-group-half">
+                    <label>授权开始日期 <span class="osm-required">*</span></label>
+                    <input type="date" name="authorization_start_date" id="osm-input-start-date" class="input-tech" required>
+                </div>
+                <div class="osm-form-group osm-form-group-half">
+                    <label>授权结束日期 <span class="osm-required">*</span></label>
+                    <input type="date" name="authorization_end_date" id="osm-input-end-date" class="input-tech" required>
+                </div>
+            </div>
+            <div class="osm-form-row">
+                <div class="osm-form-group osm-form-group-half">
+                    <label>启用状态</label>
+                    <div class="osm-switch-wrapper">
+                        <label class="osm-switch">
+                            <input type="checkbox" name="status" id="osm-input-status" checked>
+                            <span class="osm-slider"></span>
+                        </label>
+                        <span id="osm-status-label" class="osm-active-label">启用</span>
+                    </div>
+                </div>
+                <div class="osm-form-group osm-form-group-half">
+                </div>
+            </div>
+            <div class="osm-form-group">
+                <label>备注</label>
+                <textarea name="remarks" id="osm-input-remarks" class="input-tech" placeholder="输入备注信息" rows="3" style="resize:vertical"></textarea>
+            </div>
+            <div class="modal-btns">
+                <button type="button" id="osm-form-cancel" class="btn-tech btn-cancel">取消</button>
+                <button type="submit" class="btn-tech">确定</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="osm-renew-modal" class="modal-overlay">
+    <div class="modal-tech osm-renew-modal">
+        <h3>续期确认</h3>
+        <div class="osm-renew-content">
+            <div class="osm-renew-info">
+                <div class="osm-renew-row">
+                    <span class="osm-renew-label">人员姓名：</span>
+                    <span id="osm-renew-name" class="osm-renew-value"></span>
+                </div>
+                <div class="osm-renew-row">
+                    <span class="osm-renew-label">工号：</span>
+                    <span id="osm-renew-employee-no" class="osm-renew-value"></span>
+                </div>
+                <div class="osm-renew-row">
+                    <span class="osm-renew-label">当前到期日：</span>
+                    <span id="osm-renew-old-date" class="osm-renew-value"></span>
+                </div>
+                <div class="osm-renew-row">
+                    <span class="osm-renew-label">续期天数：</span>
+                    <span class="osm-renew-value osm-renew-highlight">90 天</span>
+                </div>
+                <div class="osm-renew-row">
+                    <span class="osm-renew-label">新到期日：</span>
+                    <span id="osm-renew-new-date" class="osm-renew-value osm-renew-highlight"></span>
+                </div>
+            </div>
+            <p class="osm-renew-tip">
+                <i class="bi bi-info-circle"></i>
+                确认要将该人员的授权有效期延长 90 天吗？
+            </p>
+        </div>
+        <div class="modal-btns">
+            <button type="button" id="osm-renew-cancel" class="btn-tech btn-cancel">取消</button>
+            <button type="button" id="osm-renew-confirm" class="btn-tech">确认续期</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/js/outbound_staff_management.js"></script>
+{% endblock %}

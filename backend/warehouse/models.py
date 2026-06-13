@@ -660,3 +660,92 @@ class AttendanceRecord(models.Model):
 
     def get_attendance_status_display_cn(self):
         return dict(self.ATTENDANCE_STATUS_CHOICES).get(self.attendance_status, self.attendance_status)
+
+
+class OutboundStaff(models.Model):
+    STATUS_CHOICES = [
+        ('active', '启用'),
+        ('inactive', '禁用'),
+    ]
+
+    STORAGE_AREA_CHOICES = [
+        ('warehouse_1', '一号库'),
+        ('warehouse_2', '二号库'),
+        ('warehouse_3', '三号库'),
+        ('warehouse_4', '四号库'),
+        ('warehouse_5', '五号库'),
+    ]
+
+    employee_no = models.CharField(max_length=30, unique=True, verbose_name='工号')
+    name = models.CharField(max_length=50, verbose_name='姓名')
+    authorized_areas = models.CharField(max_length=200, verbose_name='授权库区')
+    phone = models.CharField(max_length=20, blank=True, default='', verbose_name='联系电话')
+    authorization_start_date = models.DateField(verbose_name='授权开始日期')
+    authorization_end_date = models.DateField(verbose_name='授权结束日期')
+    certificate_no = models.CharField(max_length=50, blank=True, default='', verbose_name='资质证书编号')
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='active', verbose_name='启用状态')
+    remarks = models.TextField(blank=True, default='', verbose_name='备注')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
+
+    class Meta:
+        verbose_name = '出库人员'
+        verbose_name_plural = '出库人员'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'[{self.employee_no}] {self.name}'
+
+    def clean(self):
+        if self.pk:
+            original = OutboundStaff.objects.filter(pk=self.pk).first()
+            if original and original.employee_no != self.employee_no:
+                raise ValidationError({'employee_no': '工号创建后不可变更'})
+
+    def get_authorized_areas_list(self):
+        if not self.authorized_areas:
+            return []
+        return [area.strip() for area in self.authorized_areas.split(',') if area.strip()]
+
+    def set_authorized_areas_list(self, areas):
+        if isinstance(areas, list):
+            self.authorized_areas = ','.join(areas)
+        else:
+            self.authorized_areas = areas or ''
+
+    def get_authorized_areas_display(self):
+        area_map = dict(self.STORAGE_AREA_CHOICES)
+        areas = self.get_authorized_areas_list()
+        return [area_map.get(a, a) for a in areas]
+
+    def get_authorization_status(self):
+        from datetime import date, timedelta
+        today = date.today()
+
+        if self.status != 'active':
+            return {'level': 'disabled', 'label': '已禁用', 'color': '#999'}
+
+        if not self.authorization_end_date:
+            return {'level': 'normal', 'label': '正常授权', 'color': '#00ff88'}
+
+        if today > self.authorization_end_date:
+            return {'level': 'expired', 'label': '已过期', 'color': '#ff4136'}
+
+        warning_date = self.authorization_end_date - timedelta(days=7)
+        if today <= self.authorization_end_date and today >= warning_date:
+            return {'level': 'warning', 'label': '即将到期', 'color': '#ffa502'}
+
+        return {'level': 'normal', 'label': '正常授权', 'color': '#00ff88'}
+
+    def is_authorized(self):
+        auth_status = self.get_authorization_status()
+        return auth_status['level'] in ['normal', 'warning'] and self.status == 'active'
+
+    def renew_authorization(self, days=90):
+        from datetime import timedelta
+        if self.authorization_end_date:
+            self.authorization_end_date = self.authorization_end_date + timedelta(days=days)
+        else:
+            from datetime import date
+            self.authorization_end_date = date.today() + timedelta(days=days)
+        self.save(update_fields=['authorization_end_date', 'updated_at'])

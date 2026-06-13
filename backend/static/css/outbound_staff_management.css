@@ -1,0 +1,612 @@
+.osm-page {
+    max-width: 100%;
+}
+
+.osm-section {
+    background: var(--panel-bg);
+    border: var(--border-glow);
+    padding: 30px;
+}
+
+.osm-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid rgba(0, 210, 255, 0.15);
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.osm-header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: var(--primary-blue);
+    font-size: 1.2rem;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+
+.osm-header-left i {
+    font-size: 1.4rem;
+    text-shadow: var(--text-glow);
+}
+
+.osm-header-right {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.osm-filters {
+    display: flex;
+    align-items: flex-end;
+    gap: 20px;
+    margin-bottom: 25px;
+    flex-wrap: wrap;
+}
+
+.osm-filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.osm-filter-group label {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.osm-filter-group .input-tech {
+    width: 200px;
+    margin-bottom: 0;
+}
+
+.osm-table-wrapper {
+    overflow-x: auto;
+    border: 1px solid rgba(0, 210, 255, 0.15);
+    margin-bottom: 20px;
+    background: rgba(0, 10, 25, 0.4);
+}
+
+.osm-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 1100px;
+}
+
+.osm-table thead {
+    background: linear-gradient(90deg, rgba(0, 210, 255, 0.12) 0%, rgba(0, 210, 255, 0.05) 100%);
+    position: relative;
+}
+
+.osm-table thead::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--primary-blue), transparent);
+}
+
+.osm-table th {
+    padding: 14px 16px;
+    text-align: left;
+    color: var(--primary-blue);
+    font-weight: 600;
+    font-size: 0.9rem;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid rgba(0, 210, 255, 0.2);
+    text-transform: uppercase;
+    font-family: 'Consolas', 'Monaco', monospace;
+    white-space: nowrap;
+}
+
+.osm-table td {
+    padding: 14px 16px;
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 0.9rem;
+    border-bottom: 1px solid rgba(0, 210, 255, 0.06);
+    transition: all 0.3s ease;
+    vertical-align: middle;
+}
+
+.osm-table tbody tr {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    cursor: pointer;
+}
+
+.osm-table tbody tr::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+    box-shadow: inset 0 0 30px rgba(0, 210, 255, 0.25), 0 0 20px rgba(0, 210, 255, 0.1);
+}
+
+.osm-table tbody tr:hover::before {
+    opacity: 1;
+}
+
+.osm-table tbody tr:hover {
+    background: rgba(0, 210, 255, 0.08);
+    transform: scale(1.002);
+}
+
+.osm-table tbody tr:hover td {
+    color: #fff;
+}
+
+.osm-row-disabled {
+    filter: saturate(0.3);
+    opacity: 0.6;
+}
+
+.osm-row-disabled td {
+    color: rgba(255, 255, 255, 0.45) !important;
+}
+
+.osm-row-disabled:hover {
+    filter: saturate(0.5);
+    opacity: 0.75;
+}
+
+.osm-code-cell {
+    font-family: 'Consolas', 'Monaco', monospace;
+    color: var(--primary-blue) !important;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+.osm-row-disabled .osm-code-cell {
+    color: rgba(255, 255, 255, 0.45) !important;
+}
+
+.osm-name-cell {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.osm-status-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #00ff88;
+    box-shadow: 0 0 8px #00ff88, 0 0 2px #fff;
+    animation: osm-pulse 2s ease-in-out infinite;
+}
+
+.osm-status-dot.warning {
+    background: #ffa502;
+    box-shadow: 0 0 8px #ffa502, 0 0 2px #fff;
+}
+
+.osm-status-dot.expired {
+    background: #ff4136;
+    box-shadow: 0 0 8px #ff4136, 0 0 2px #fff;
+}
+
+.osm-status-dot.disabled {
+    background: #888;
+    box-shadow: none;
+    animation: none;
+}
+
+.osm-row-disabled .osm-status-dot {
+    background: #888;
+    box-shadow: none;
+    animation: none;
+}
+
+@keyframes osm-pulse {
+    0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.7;
+        transform: scale(0.9);
+    }
+}
+
+.osm-auth-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    font-size: 0.8rem;
+    border-radius: 3px;
+    font-weight: 500;
+}
+
+.osm-auth-normal {
+    background: rgba(0, 255, 136, 0.12);
+    color: #00ff88;
+    border: 1px solid rgba(0, 255, 136, 0.3);
+}
+
+.osm-auth-warning {
+    background: rgba(255, 165, 2, 0.12);
+    color: #ffa502;
+    border: 1px solid rgba(255, 165, 2, 0.3);
+}
+
+.osm-auth-expired {
+    background: rgba(255, 65, 54, 0.12);
+    color: #ff4136;
+    border: 1px solid rgba(255, 65, 54, 0.3);
+}
+
+.osm-auth-disabled {
+    background: rgba(153, 153, 153, 0.12);
+    color: #999;
+    border: 1px solid rgba(153, 153, 153, 0.3);
+}
+
+.osm-areas-cell {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.osm-area-chip {
+    display: inline-block;
+    padding: 2px 10px;
+    font-size: 0.78rem;
+    background: rgba(0, 210, 255, 0.08);
+    border: 1px solid rgba(0, 210, 255, 0.15);
+    color: rgba(255, 255, 255, 0.75);
+    border-radius: 3px;
+}
+
+.osm-phone-cell {
+    font-family: 'Consolas', 'Monaco', monospace;
+    color: rgba(255, 255, 255, 0.7) !important;
+}
+
+.osm-date-range {
+    font-size: 0.85rem;
+}
+
+.osm-date-range .osm-date-sep {
+    color: rgba(255, 255, 255, 0.3);
+    margin: 0 6px;
+}
+
+.osm-date-range .osm-date-end {
+    font-weight: 600;
+}
+
+.osm-actions {
+    white-space: nowrap;
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.osm-action-btn {
+    background: transparent;
+    border: 1px solid rgba(0, 210, 255, 0.2);
+    padding: 5px 10px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    border-radius: 3px;
+    color: rgba(255, 255, 255, 0.7);
+    min-width: 28px;
+    height: 28px;
+}
+
+.osm-action-btn:hover:not(:disabled) {
+    background: rgba(0, 210, 255, 0.15);
+    border-color: var(--primary-blue);
+}
+
+.osm-action-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+.osm-edit-btn {
+    color: #4ecdc4;
+}
+
+.osm-edit-btn:hover:not(:disabled) {
+    color: #fff;
+    box-shadow: 0 0 8px rgba(78, 205, 196, 0.5);
+}
+
+.osm-delete-btn {
+    color: #ff6b6b;
+}
+
+.osm-delete-btn:hover:not(:disabled) {
+    color: #fff;
+    background: rgba(255, 65, 54, 0.15);
+    border-color: #ff4136;
+    box-shadow: 0 0 8px rgba(255, 65, 54, 0.5);
+}
+
+.osm-renew-btn {
+    color: #ffa502;
+}
+
+.osm-renew-btn:hover:not(:disabled) {
+    color: #fff;
+    background: rgba(255, 165, 2, 0.15);
+    border-color: #ffa502;
+    box-shadow: 0 0 8px rgba(255, 165, 2, 0.5);
+}
+
+.osm-empty-hint {
+    text-align: center;
+    padding: 80px 20px;
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.osm-empty-hint i {
+    font-size: 3rem;
+    color: rgba(0, 210, 255, 0.2);
+    margin-bottom: 15px;
+    display: block;
+}
+
+.osm-empty-hint p {
+    font-size: 0.95rem;
+    font-style: italic;
+}
+
+.osm-pagination {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 15px;
+    border-top: 1px solid rgba(0, 210, 255, 0.1);
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.osm-page-info {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.85rem;
+}
+
+.osm-page-btns {
+    display: flex;
+    gap: 10px;
+}
+
+.osm-modal {
+    max-width: 720px !important;
+    text-align: left !important;
+}
+
+.osm-modal h3 {
+    text-align: center;
+    margin-bottom: 25px;
+}
+
+.osm-form {
+    margin-top: 10px;
+}
+
+.osm-form-group {
+    margin-bottom: 18px;
+}
+
+.osm-form-group label {
+    display: block;
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 0.9rem;
+    margin-bottom: 8px;
+}
+
+.osm-required {
+    color: #ff4136;
+}
+
+.osm-form-group .input-tech {
+    margin-bottom: 0;
+}
+
+.osm-form-group .input-tech:disabled {
+    background: rgba(0, 50, 100, 0.1);
+    color: rgba(255, 255, 255, 0.4);
+    cursor: not-allowed;
+}
+
+.osm-form-row {
+    display: flex;
+    gap: 20px;
+}
+
+.osm-form-group-half {
+    flex: 1;
+}
+
+.osm-form .modal-btns {
+    margin-top: 25px;
+}
+
+.osm-checkbox-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 12px;
+    background: rgba(0, 10, 25, 0.4);
+    border: 1px solid rgba(0, 210, 255, 0.15);
+    border-radius: 4px;
+}
+
+.osm-checkbox-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    padding: 6px 12px;
+    border-radius: 3px;
+    transition: all 0.2s;
+    user-select: none;
+}
+
+.osm-checkbox-item:hover {
+    background: rgba(0, 210, 255, 0.08);
+}
+
+.osm-checkbox-item input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: var(--primary-blue);
+}
+
+.osm-checkbox-item label {
+    margin: 0;
+    cursor: pointer;
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 0.88rem;
+}
+
+.osm-switch-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 8px 0;
+}
+
+.osm-switch {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 26px;
+}
+
+.osm-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.osm-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(102, 102, 102, 0.4);
+    border: 1px solid rgba(102, 102, 102, 0.5);
+    transition: .3s;
+    border-radius: 26px;
+}
+
+.osm-slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background: #999;
+    transition: .3s;
+    border-radius: 50%;
+}
+
+.osm-switch input:checked + .osm-slider {
+    background: rgba(0, 255, 136, 0.15);
+    border-color: #00ff88;
+}
+
+.osm-switch input:checked + .osm-slider:before {
+    transform: translateX(24px);
+    background: #00ff88;
+    box-shadow: 0 0 8px #00ff88;
+}
+
+.osm-active-label {
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.osm-renew-modal {
+    max-width: 480px !important;
+    text-align: left !important;
+}
+
+.osm-renew-modal h3 {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.osm-renew-content {
+    margin-bottom: 20px;
+}
+
+.osm-renew-info {
+    background: rgba(0, 10, 25, 0.5);
+    border: 1px solid rgba(0, 210, 255, 0.15);
+    border-radius: 4px;
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.osm-renew-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px dashed rgba(0, 210, 255, 0.1);
+}
+
+.osm-renew-row:last-child {
+    border-bottom: none;
+}
+
+.osm-renew-label {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 0.88rem;
+}
+
+.osm-renew-value {
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 0.88rem;
+    font-weight: 500;
+}
+
+.osm-renew-highlight {
+    color: #ffa502;
+    font-weight: 600;
+}
+
+.osm-renew-tip {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.85rem;
+    text-align: center;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.osm-renew-tip i {
+    color: var(--primary-blue);
+}
+
+.osm-cert-cell {
+    font-family: 'Consolas', 'Monaco', monospace;
+    color: rgba(78, 205, 196, 0.9) !important;
+}

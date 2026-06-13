@@ -15,7 +15,7 @@ urlpatterns = [
     path('approval/', views.approval_page, name='approval'),
     path('attendance-staff/', views.attendance_staff_page, name='attendance-staff'),
     path('attendance-staff/<int:pk>/', views.attendance_staff_detail_page, name='attendance-staff-detail'),
-    path('outbound-staff/', views.menu_page, {'page_name': 'outbound-staff'}, name='outbound-staff'),
+    path('outbound-staff/', views.outbound_staff_page, name='outbound-staff'),
 
     path('api/categories/', views.api_categories, name='api-categories'),
     path('api/categories/<int:category_id>/varieties/', views.api_varieties_by_category, name='api-varieties-by-category'),
@@ -84,4 +84,13 @@ urlpatterns = [
     path('api/attendance-staff/<int:pk>/delete/', views.api_attendance_staff_delete, name='api-attendance-staff-delete'),
     path('api/attendance-staff/template/', views.api_attendance_staff_template, name='api-attendance-staff-template'),
     path('api/attendance-staff/import/', views.api_attendance_staff_import, name='api-attendance-staff-import'),
+
+    path('api/outbound-staff/', views.api_outbound_staff_list, name='api-outbound-staff-list'),
+    path('api/outbound-staff/available/', views.api_outbound_staff_available, name='api-outbound-staff-available'),
+    path('api/outbound-staff/storage-areas/', views.api_outbound_staff_storage_areas, name='api-outbound-staff-storage-areas'),
+    path('api/outbound-staff/create/', views.api_outbound_staff_create, name='api-outbound-staff-create'),
+    path('api/outbound-staff/<int:pk>/', views.api_outbound_staff_detail, name='api-outbound-staff-detail'),
+    path('api/outbound-staff/<int:pk>/update/', views.api_outbound_staff_update, name='api-outbound-staff-update'),
+    path('api/outbound-staff/<int:pk>/delete/', views.api_outbound_staff_delete, name='api-outbound-staff-delete'),
+    path('api/outbound-staff/<int:pk>/renew/', views.api_outbound_staff_renew, name='api-outbound-staff-renew'),
 ]
