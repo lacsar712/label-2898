@@ -8,7 +8,7 @@ urlpatterns = [
     path('goods-entry/', views.goods_entry_page, name='goods-entry'),
     path('unit-management/', views.unit_management_page, name='unit-management'),
     path('category-management/', views.category_management_page, name='category-management'),
-    path('variety-management/', views.menu_page, {'page_name': 'variety-management'}, name='variety-management'),
+    path('variety-management/', views.variety_management_page, name='variety-management'),
     path('query-export/', views.menu_page, {'page_name': 'query-export'}, name='query-export'),
     path('daily-report/', views.menu_page, {'page_name': 'daily-report'}, name='daily-report'),
     path('warning/', views.menu_page, {'page_name': 'warning'}, name='warning'),
@@ -34,4 +34,13 @@ urlpatterns = [
     path('api/material-categories/<int:pk>/update/', views.api_material_category_update, name='api-material-category-update'),
     path('api/material-categories/<int:pk>/delete/', views.api_material_category_delete, name='api-material-category-delete'),
     path('api/material-categories/<int:pk>/reorder/', views.api_material_category_reorder, name='api-material-category-reorder'),
+
+    path('api/varieties/', views.api_varieties, name='api-varieties'),
+    path('api/varieties/next-code/', views.api_variety_next_code, name='api-variety-next-code'),
+    path('api/varieties/create/', views.api_variety_create, name='api-variety-create'),
+    path('api/varieties/<int:pk>/', views.api_variety_detail, name='api-variety-detail'),
+    path('api/varieties/<int:pk>/update/', views.api_variety_update, name='api-variety-update'),
+    path('api/varieties/<int:pk>/delete/', views.api_variety_delete, name='api-variety-delete'),
+
+    path('api/storage-areas/', views.api_storage_areas, name='api-storage-areas'),
 ]

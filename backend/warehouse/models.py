@@ -26,7 +26,7 @@ class Unit(models.Model):
                 raise ValidationError({'code': '单位编码创建后不可变更'})
 
     def is_referenced(self):
-        return self.variety_set.exists() or self.unitarchive_set.exists()
+        return self.variety_set.exists() or self.unitarchive_set.exists() or self.varieties.exists()
 
 
 class CategoryArchive(models.Model):
@@ -86,12 +86,14 @@ class MaterialCategory(models.Model):
             'has_children': self.has_children(),
             'children_count': self.children.count() if self.has_children() else 0,
             'variety_count': self.variety_set.count(),
+            'varieties_count': self.varieties.count(),
             'unit_count': self.unitarchive_set.count(),
             'goods_entry_count': GoodsEntry.objects.filter(category=self.name).count(),
         }
         info['is_referenced'] = (
             info['has_children'] or
             info['variety_count'] > 0 or
+            info['varieties_count'] > 0 or
             info['unit_count'] > 0 or
             info['goods_entry_count'] > 0
         )
@@ -154,6 +156,132 @@ class UnitArchive(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class Variety(models.Model):
+    code = models.CharField(max_length=50, unique=True, verbose_name='品种编码')
+    name = models.CharField(max_length=100, verbose_name='品种名称')
+    specification = models.CharField(max_length=100, blank=True, default='', verbose_name='规格型号')
+    shelf_life_days = models.IntegerField(default=0, verbose_name='保质期天数')
+    min_stock_warning = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name='最低库存预警值')
+    default_storage_area = models.CharField(max_length=100, blank=True, default='', verbose_name='默认存放库区')
+    is_active = models.BooleanField(default=True, verbose_name='是否启用')
+    remarks = models.TextField(blank=True, default='', verbose_name='备注')
+
+    category = models.ForeignKey(
+        MaterialCategory,
+        on_delete=models.PROTECT,
+        related_name='varieties',
+        verbose_name='所属品类'
+    )
+    unit = models.ForeignKey(
+        Unit,
+        on_delete=models.PROTECT,
+        related_name='varieties',
+        verbose_name='计量单位'
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
+
+    class Meta:
+        verbose_name = '物资品种'
+        verbose_name_plural = '物资品种'
+        ordering = ['code']
+
+    def __str__(self):
+        return f'[{self.code}] {self.name}'
+
+    def clean(self):
+        if self.pk:
+            original = Variety.objects.filter(pk=self.pk).first()
+            if original and original.code != self.code:
+                raise ValidationError({'code': '品种编码创建后不可变更'})
+
+    @staticmethod
+    def generate_next_code(category_id):
+        category = MaterialCategory.objects.filter(pk=category_id).first()
+        if not category:
+            return ''
+
+        prefix = category.code
+
+        existing = Variety.objects.filter(
+            category_id=category_id,
+            code__startswith=prefix
+        ).order_by('-code')
+
+        max_seq = 0
+        for v in existing:
+            suffix = v.code[len(prefix):]
+            if suffix.isdigit() and len(suffix) == 3:
+                try:
+                    seq = int(suffix)
+                    if seq > max_seq:
+                        max_seq = seq
+                except ValueError:
+                    continue
+
+        next_seq = max_seq + 1
+        return f'{prefix}{next_seq:03d}'
+
+    def is_referenced(self):
+        from django.db.models import Q
+        return GoodsEntry.objects.filter(
+            Q(variety=self.name) | Q(material_name=self.name)
+        ).exists()
+
+    def get_inventory_summary(self):
+        from django.db.models import Sum
+        entries = GoodsEntry.objects.filter(
+            Q(variety=self.name) | Q(material_name=self.name),
+            status='effective',
+            is_deleted=False
+        )
+        agg = entries.aggregate(total=Sum('quantity'))
+        return {
+            'current_stock': float(agg['total'] or 0),
+            'unit': self.unit.name if self.unit else '',
+            'entry_count': entries.count()
+        }
+
+    def get_recent_transactions(self, limit=10):
+        from django.db.models import Q
+        entries = GoodsEntry.objects.filter(
+            Q(variety=self.name) | Q(material_name=self.name),
+            is_deleted=False
+        ).order_by('-entry_date', '-created_at')[:limit]
+
+        transactions = []
+        for entry in entries:
+            transactions.append({
+                'entry_no': entry.entry_no,
+                'type': '入库',
+                'quantity': float(entry.quantity),
+                'unit': entry.unit,
+                'date': entry.entry_date.strftime('%Y-%m-%d'),
+                'handler': entry.handler,
+                'supplier': entry.supplier,
+                'storage_area': entry.storage_area,
+                'status': entry.get_status_display(),
+            })
+        return transactions
+
+    def get_stock_status(self):
+        summary = self.get_inventory_summary()
+        current_stock = summary['current_stock']
+        warning_value = float(self.min_stock_warning)
+
+        if current_stock <= 0:
+            return {'level': 'out_of_stock', 'label': '缺货', 'color': '#ff4136'}
+        elif current_stock <= warning_value * 0.5:
+            return {'level': 'critical', 'label': '严重不足', 'color': '#ff6b6b'}
+        elif current_stock <= warning_value:
+            return {'level': 'warning', 'label': '库存预警', 'color': '#ffa502'}
+        elif current_stock <= warning_value * 2:
+            return {'level': 'normal', 'label': '库存正常', 'color': '#4ecdc4'}
+        else:
+            return {'level': 'sufficient', 'label': '库存充足', 'color': '#00ff88'}
 
 
 class GoodsEntry(models.Model):

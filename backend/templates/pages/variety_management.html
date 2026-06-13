@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/variety_management.css">
+{% endblock %}
+
+{% block content %}
+<div class="vm-page">
+    <div class="vm-main-layout">
+        <div class="vm-sidebar">
+            <div class="vm-sidebar-header">
+                <i class="bi bi-folder-tree"></i>
+                <span>品类筛选</span>
+            </div>
+            <div class="vm-category-tree" id="vm-category-tree">
+            </div>
+            <div class="vm-sidebar-actions">
+                <button id="vm-reset-category-btn" class="btn-tech btn-cancel" style="width: 100%; padding: 8px 15px;">
+                    <i class="bi bi-x-circle"></i> 重置筛选
+                </button>
+            </div>
+        </div>
+
+        <div class="vm-content">
+            <div class="vm-section">
+                <div class="vm-section-header">
+                    <div class="vm-header-left">
+                        <i class="bi bi-box-seam"></i>
+                        <span>品种档案列表</span>
+                        <span id="vm-category-badge" class="vm-category-badge" style="display:none;"></span>
+                    </div>
+                    <div class="vm-header-right">
+                        <button id="vm-add-btn" class="btn-tech">
+                            <i class="bi bi-plus-lg"></i> 新增品种
+                        </button>
+                    </div>
+                </div>
+
+                <div class="vm-filters">
+                    <div class="vm-filter-group">
+                        <label>品种名称</label>
+                        <input type="text" id="vm-filter-name" class="input-tech" placeholder="输入名称或编码模糊搜索">
+                    </div>
+                    <div class="vm-filter-group">
+                        <label>启用状态</label>
+                        <select id="vm-filter-active" class="input-tech">
+                            <option value="">全部</option>
+                            <option value="true">已启用</option>
+                            <option value="false">已禁用</option>
+                        </select>
+                    </div>
+                    <button id="vm-filter-btn" class="btn-tech">筛选</button>
+                    <button id="vm-reset-btn" class="btn-tech btn-cancel">重置</button>
+                </div>
+
+                <div class="vm-table-wrapper">
+                    <table class="vm-table">
+                        <thead>
+                            <tr>
+                                <th>品种编码</th>
+                                <th>品种名称</th>
+                                <th>规格型号</th>
+                                <th>所属品类</th>
+                                <th>计量单位</th>
+                                <th>保质期(天)</th>
+                                <th>预警值</th>
+                                <th>当前库存</th>
+                                <th>默认库区</th>
+                                <th>状态</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="vm-table-body">
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="vm-pagination">
+                    <span id="vm-page-info" class="vm-page-info"></span>
+                    <div class="vm-page-btns">
+                        <button id="vm-page-prev" class="btn-tech btn-cancel" disabled>&laquo; 上一页</button>
+                        <button id="vm-page-next" class="btn-tech btn-cancel" disabled>下一页 &raquo;</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="vm-detail-sidebar" id="vm-detail-sidebar">
+            <div class="vm-detail-header">
+                <h3>品种详情</h3>
+                <button id="vm-close-detail" class="vm-close-btn">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+            <div id="vm-detail-content">
+                <div class="vm-detail-empty">
+                    <i class="bi bi-info-circle"></i>
+                    <p>点击列表中的品种查看详情</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="vm-form-modal" class="modal-overlay">
+    <div class="modal-tech vm-modal">
+        <h3 id="vm-modal-title">新增品种</h3>
+        <form id="vm-form" class="vm-form">
+            {% csrf_token %}
+
+            <div class="vm-form-row">
+                <div class="vm-form-group vm-form-group-half">
+                    <label>所属品类 <span class="vm-required">*</span></label>
+                    <select name="category_id" id="vm-input-category" class="input-tech" required>
+                        <option value="">-- 请选择品类 --</option>
+                    </select>
+                </div>
+                <div class="vm-form-group vm-form-group-half">
+                    <label>品种编码</label>
+                    <div class="vm-code-wrapper">
+                        <input type="text" id="vm-input-code-prefix" class="input-tech vm-prefix-input" placeholder="品类编码" readonly>
+                        <input type="text" id="vm-input-code-suffix" class="input-tech vm-suffix-input" placeholder="流水号" readonly>
+                    </div>
+                    <div class="vm-form-hint">编码规则：品类编码 + 三位流水号</div>
+                </div>
+            </div>
+
+            <div class="vm-form-row">
+                <div class="vm-form-group vm-form-group-half">
+                    <label>品种名称 <span class="vm-required">*</span></label>
+                    <input type="text" name="name" id="vm-input-name" class="input-tech" placeholder="输入品种名称" maxlength="100" required>
+                </div>
+                <div class="vm-form-group vm-form-group-half">
+                    <label>规格型号</label>
+                    <input type="text" name="specification" id="vm-input-spec" class="input-tech" placeholder="输入规格型号" maxlength="100">
+                </div>
+            </div>
+
+            <div class="vm-form-row">
+                <div class="vm-form-group vm-form-group-half">
+                    <label>计量单位 <span class="vm-required">*</span></label>
+                    <select name="unit_id" id="vm-input-unit" class="input-tech" required>
+                        <option value="">-- 请选择单位 --</option>
+                    </select>
+                </div>
+                <div class="vm-form-group vm-form-group-half">
+                    <label>默认存放库区</label>
+                    <select name="default_storage_area" id="vm-input-storage" class="input-tech">
+                        <option value="">-- 请选择或输入库区 --</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="vm-form-row">
+                <div class="vm-form-group vm-form-group-half">
+                    <label>保质期天数</label>
+                    <input type="number" name="shelf_life_days" id="vm-input-shelf-life" class="input-tech" placeholder="输入保质期天数" value="0" min="0">
+                </div>
+                <div class="vm-form-group vm-form-group-half">
+                    <label>最低库存预警值</label>
+                    <input type="number" name="min_stock_warning" id="vm-input-warning" class="input-tech" placeholder="输入预警值" value="0" min="0" step="0.01">
+                </div>
+            </div>
+
+            <div class="vm-form-group">
+                <label>备注</label>
+                <textarea name="remarks" id="vm-input-remarks" class="input-tech" placeholder="输入备注信息" rows="3"></textarea>
+            </div>
+
+            <div class="vm-form-group">
+                <div class="vm-switch-wrapper">
+                    <label class="vm-switch">
+                        <input type="checkbox" name="is_active" id="vm-input-active" checked>
+                        <span class="vm-slider"></span>
+                    </label>
+                    <span id="vm-active-label" class="vm-active-label">已启用</span>
+                </div>
+            </div>
+
+            <div class="modal-btns">
+                <button type="button" id="vm-form-cancel" class="btn-tech btn-cancel">取消</button>
+                <button type="submit" class="btn-tech">确定</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/js/variety_management.js"></script>
+{% endblock %}

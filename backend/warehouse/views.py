@@ -8,7 +8,7 @@ from django.utils import timezone
 from django.db.models import Q
 import json
 
-from .models import CategoryArchive, VarietyArchive, UnitArchive, GoodsEntry, Unit, MaterialCategory
+from .models import CategoryArchive, VarietyArchive, UnitArchive, GoodsEntry, Unit, MaterialCategory, Variety
 
 
 def user_login(request):
@@ -69,6 +69,11 @@ def unit_management_page(request):
 @login_required
 def category_management_page(request):
     return render(request, 'pages/category_management.html', {'title': '品类管理', 'page_name': 'category-management'})
+
+
+@login_required
+def variety_management_page(request):
+    return render(request, 'pages/variety_management.html', {'title': '品种管理', 'page_name': 'variety-management'})
 
 
 @login_required
@@ -544,5 +549,261 @@ def api_material_category_reorder(request, pk):
             'success': True,
             'message': '排序更新成功',
         })
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)
+
+
+@login_required
+def api_varieties(request):
+    try:
+        queryset = Variety.objects.all()
+
+        category_id = request.GET.get('category_id', '').strip()
+        name = request.GET.get('name', '').strip()
+        is_active = request.GET.get('is_active', '').strip()
+
+        if category_id:
+            cat_ids = [int(category_id)]
+            children = MaterialCategory.objects.filter(parent_id=int(category_id)).values_list('id', flat=True)
+            cat_ids.extend(list(children))
+            queryset = queryset.filter(category_id__in=cat_ids)
+
+        if name:
+            queryset = queryset.filter(Q(name__icontains=name) | Q(code__icontains=name))
+
+        if is_active in ['true', 'false']:
+            queryset = queryset.filter(is_active=(is_active == 'true'))
+
+        queryset = queryset.select_related('category', 'unit')
+
+        page_num = int(request.GET.get('page', 1))
+        page_size = int(request.GET.get('page_size', 10))
+        paginator = Paginator(queryset, page_size)
+        page = paginator.get_page(page_num)
+
+        items = []
+        for obj in page.object_list:
+            stock_status = obj.get_stock_status()
+            inventory = obj.get_inventory_summary()
+            items.append({
+                'id': obj.id,
+                'code': obj.code,
+                'name': obj.name,
+                'specification': obj.specification,
+                'shelf_life_days': obj.shelf_life_days,
+                'min_stock_warning': str(obj.min_stock_warning),
+                'default_storage_area': obj.default_storage_area,
+                'is_active': obj.is_active,
+                'remarks': obj.remarks,
+                'category_id': obj.category_id,
+                'category_code': obj.category.code,
+                'category_name': obj.category.name,
+                'unit_id': obj.unit_id,
+                'unit_name': obj.unit.name,
+                'unit_abbr': obj.unit.english_abbr,
+                'current_stock': inventory['current_stock'],
+                'stock_unit': inventory['unit'],
+                'stock_status': stock_status,
+                'is_referenced': obj.is_referenced(),
+                'created_at': obj.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+            })
+
+        return JsonResponse({
+            'items': items,
+            'total': paginator.count,
+            'page': page_num,
+            'page_size': page_size,
+            'total_pages': paginator.num_pages,
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)
+
+
+@login_required
+def api_variety_next_code(request):
+    try:
+        category_id = request.GET.get('category_id', '').strip()
+        if not category_id:
+            return JsonResponse({'success': False, 'message': '请选择品类'}, status=400)
+
+        next_code = Variety.generate_next_code(int(category_id))
+        return JsonResponse({
+            'success': True,
+            'code': next_code,
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)
+
+
+@login_required
+def api_variety_detail(request, pk):
+    try:
+        obj = get_object_or_404(Variety, pk=pk)
+        stock_status = obj.get_stock_status()
+        inventory = obj.get_inventory_summary()
+        transactions = obj.get_recent_transactions(10)
+
+        return JsonResponse({
+            'id': obj.id,
+            'code': obj.code,
+            'name': obj.name,
+            'specification': obj.specification,
+            'shelf_life_days': obj.shelf_life_days,
+            'min_stock_warning': str(obj.min_stock_warning),
+            'default_storage_area': obj.default_storage_area,
+            'is_active': obj.is_active,
+            'remarks': obj.remarks,
+            'category_id': obj.category_id,
+            'category_code': obj.category.code,
+            'category_name': obj.category.name,
+            'unit_id': obj.unit_id,
+            'unit_name': obj.unit.name,
+            'unit_abbr': obj.unit.english_abbr,
+            'current_stock': inventory['current_stock'],
+            'stock_unit': inventory['unit'],
+            'entry_count': inventory['entry_count'],
+            'stock_status': stock_status,
+            'transactions': transactions,
+            'created_at': obj.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+            'updated_at': obj.updated_at.strftime('%Y-%m-%d %H:%M:%S'),
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)
+
+
+@require_POST
+@login_required
+def api_variety_create(request):
+    try:
+        data = json.loads(request.body)
+
+        category_id = data.get('category_id')
+        name = data.get('name', '').strip()
+        specification = data.get('specification', '').strip()
+        shelf_life_days = int(data.get('shelf_life_days', 0) or 0)
+        min_stock_warning = float(data.get('min_stock_warning', 0) or 0)
+        default_storage_area = data.get('default_storage_area', '').strip()
+        is_active = data.get('is_active', True)
+        remarks = data.get('remarks', '').strip()
+        unit_id = data.get('unit_id')
+
+        if not category_id:
+            return JsonResponse({'success': False, 'message': '请选择所属品类'}, status=400)
+        if not name:
+            return JsonResponse({'success': False, 'message': '品种名称不能为空'}, status=400)
+        if not unit_id:
+            return JsonResponse({'success': False, 'message': '请选择计量单位'}, status=400)
+
+        category = MaterialCategory.objects.filter(pk=category_id).first()
+        if not category:
+            return JsonResponse({'success': False, 'message': '所选品类不存在'}, status=400)
+
+        unit = Unit.objects.filter(pk=unit_id).first()
+        if not unit:
+            return JsonResponse({'success': False, 'message': '所选单位不存在'}, status=400)
+
+        code = data.get('code', '').strip()
+        if not code:
+            code = Variety.generate_next_code(category_id)
+
+        if Variety.objects.filter(code=code).exists():
+            return JsonResponse({'success': False, 'message': '品种编码已存在'}, status=400)
+
+        obj = Variety.objects.create(
+            code=code,
+            name=name,
+            specification=specification,
+            shelf_life_days=shelf_life_days,
+            min_stock_warning=min_stock_warning,
+            default_storage_area=default_storage_area,
+            is_active=is_active,
+            remarks=remarks,
+            category=category,
+            unit=unit,
+        )
+
+        return JsonResponse({
+            'success': True,
+            'id': obj.id,
+            'code': obj.code,
+            'message': f'品种 {obj.name} 创建成功',
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)
+
+
+@require_POST
+@login_required
+def api_variety_update(request, pk):
+    try:
+        obj = get_object_or_404(Variety, pk=pk)
+        data = json.loads(request.body)
+
+        if data.get('code') and data['code'] != obj.code:
+            return JsonResponse({'success': False, 'message': '品种编码创建后不可变更'}, status=400)
+
+        category_id = data.get('category_id', obj.category_id)
+        unit_id = data.get('unit_id', obj.unit_id)
+
+        if category_id != obj.category_id:
+            category = MaterialCategory.objects.filter(pk=category_id).first()
+            if not category:
+                return JsonResponse({'success': False, 'message': '所选品类不存在'}, status=400)
+            obj.category = category
+
+        if unit_id != obj.unit_id:
+            unit = Unit.objects.filter(pk=unit_id).first()
+            if not unit:
+                return JsonResponse({'success': False, 'message': '所选单位不存在'}, status=400)
+            obj.unit = unit
+
+        obj.name = data.get('name', obj.name).strip()
+        obj.specification = data.get('specification', obj.specification).strip()
+        obj.shelf_life_days = int(data.get('shelf_life_days', obj.shelf_life_days) or 0)
+        obj.min_stock_warning = float(data.get('min_stock_warning', obj.min_stock_warning) or 0)
+        obj.default_storage_area = data.get('default_storage_area', obj.default_storage_area).strip()
+        obj.is_active = data.get('is_active', obj.is_active)
+        obj.remarks = data.get('remarks', obj.remarks).strip()
+
+        if not obj.name:
+            return JsonResponse({'success': False, 'message': '品种名称不能为空'}, status=400)
+
+        obj.save()
+        return JsonResponse({
+            'success': True,
+            'message': f'品种 {obj.name} 更新成功',
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)
+
+
+@require_POST
+@login_required
+def api_variety_delete(request, pk):
+    try:
+        obj = get_object_or_404(Variety, pk=pk)
+
+        if obj.is_referenced():
+            return JsonResponse({
+                'success': False,
+                'message': '该品种已被入库记录引用，无法删除',
+            }, status=400)
+
+        name = obj.name
+        obj.delete()
+        return JsonResponse({
+            'success': True,
+            'message': f'品种 {name} 删除成功',
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)
+
+
+@login_required
+def api_storage_areas(request):
+    try:
+        areas = GoodsEntry.objects.order_by().values_list('storage_area', flat=True).distinct()
+        area_list = [a for a in areas if a and a.strip()]
+        return JsonResponse(area_list, safe=False)
     except Exception as e:
         return JsonResponse({'success': False, 'message': str(e)}, status=400)
