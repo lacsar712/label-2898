@@ -11,7 +11,7 @@ urlpatterns = [
     path('variety-management/', views.variety_management_page, name='variety-management'),
     path('query-export/', views.query_export_page, name='query-export'),
     path('daily-report/', views.daily_report_page, name='daily-report'),
-    path('warning/', views.menu_page, {'page_name': 'warning'}, name='warning'),
+    path('warning/', views.warning_page, name='warning'),
     path('approval/', views.menu_page, {'page_name': 'approval'}, name='approval'),
     path('attendance-staff/', views.menu_page, {'page_name': 'attendance-staff'}, name='attendance-staff'),
     path('outbound-staff/', views.menu_page, {'page_name': 'outbound-staff'}, name='outbound-staff'),
@@ -59,4 +59,11 @@ urlpatterns = [
     path('api/daily-report/list/', views.api_daily_report_list, name='api-daily-report-list'),
     path('api/daily-report/calendar-marks/', views.api_daily_report_calendar_marks, name='api-daily-report-calendar-marks'),
     path('api/daily-report/transactions/', views.api_daily_report_transactions, name='api-daily-report-transactions'),
+
+    path('api/warning/list/', views.api_warning_list, name='api-warning-list'),
+    path('api/warning/stats/', views.api_warning_stats, name='api-warning-stats'),
+    path('api/warning/recalculate/', views.api_warning_recalculate, name='api-warning-recalculate'),
+    path('api/warning/restock-suggestion/', views.api_warning_restock_suggestion, name='api-warning-restock-suggestion'),
+    path('api/warning/snapshot/list/', views.api_warning_snapshot_list, name='api-warning-snapshot-list'),
+    path('api/warning/snapshot/summary/', views.api_warning_snapshot_summary, name='api-warning-snapshot-summary'),
 ]

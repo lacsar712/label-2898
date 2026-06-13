@@ -8,7 +8,7 @@ from django.utils import timezone
 from django.db.models import Q
 import json
 
-from .models import CategoryArchive, VarietyArchive, UnitArchive, GoodsEntry, Unit, MaterialCategory, Variety, GoodsOutbound, QueryTemplate, DailyReport
+from .models import CategoryArchive, VarietyArchive, UnitArchive, GoodsEntry, Unit, MaterialCategory, Variety, GoodsOutbound, QueryTemplate, DailyReport, StockWarningSnapshot
 
 
 def user_login(request):
@@ -1508,5 +1508,416 @@ def api_daily_report_transactions(request):
             'transactions': transactions,
             'total': len(transactions),
         })
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)
+
+
+def _calc_warning_level(current_stock, warning_threshold):
+    if warning_threshold <= 0:
+        return 'normal'
+    if current_stock <= warning_threshold * 0.5:
+        return 'critical'
+    elif current_stock <= warning_threshold:
+        return 'low'
+    else:
+        return 'normal'
+
+
+def _calc_variety_inventory(variety):
+    from django.db.models import Sum
+    entries = GoodsEntry.objects.filter(
+        Q(variety=variety.name) | Q(material_name=variety.name),
+        status='effective',
+        is_deleted=False
+    )
+    inbound_agg = entries.aggregate(total=Sum('quantity'))
+    inbound_total = float(inbound_agg['total'] or 0)
+
+    outbounds = GoodsOutbound.objects.filter(
+        Q(variety=variety.name) | Q(material_name=variety.name),
+        status='effective',
+        is_deleted=False
+    )
+    outbound_agg = outbounds.aggregate(total=Sum('quantity'))
+    outbound_total = float(outbound_agg['total'] or 0)
+
+    return inbound_total - outbound_total
+
+
+@login_required
+def warning_page(request):
+    return render(request, 'pages/warning_management.html', {'title': '库存预警', 'page_name': 'warning'})
+
+
+@login_required
+def api_warning_list(request):
+    try:
+        from django.db.models import Sum
+
+        level = request.GET.get('level', '').strip()
+        category_id = request.GET.get('category_id', '').strip()
+        keyword = request.GET.get('keyword', '').strip()
+        page_num = int(request.GET.get('page', 1))
+        page_size = int(request.GET.get('page_size', 10))
+
+        queryset = Variety.objects.filter(is_active=True).select_related('category', 'unit')
+
+        if category_id:
+            cat_ids = [int(category_id)]
+            children = MaterialCategory.objects.filter(parent_id=int(category_id)).values_list('id', flat=True)
+            cat_ids.extend(list(children))
+            queryset = queryset.filter(category_id__in=cat_ids)
+
+        if keyword:
+            queryset = queryset.filter(Q(name__icontains=keyword) | Q(code__icontains=keyword))
+
+        all_items = list(queryset)
+
+        warning_items = []
+        for v in all_items:
+            current_stock = _calc_variety_inventory(v)
+            warning_threshold = float(v.min_stock_warning or 0)
+            warning_level = _calc_warning_level(current_stock, warning_threshold)
+
+            if level and level != warning_level:
+                continue
+
+            gap = max(0, warning_threshold - current_stock)
+            suggested = 0
+            if warning_level in ('critical', 'low'):
+                suggested = warning_threshold * 2 - current_stock
+                suggested = max(0, round(suggested, 2))
+
+            warning_items.append({
+                'id': v.id,
+                'code': v.code,
+                'name': v.name,
+                'specification': v.specification,
+                'category_id': v.category_id,
+                'category_code': v.category.code if v.category else '',
+                'category_name': v.category.name if v.category else '',
+                'unit_id': v.unit_id,
+                'unit_name': v.unit.name if v.unit else '',
+                'unit_abbr': v.unit.english_abbr if v.unit else '',
+                'current_stock': round(current_stock, 2),
+                'warning_threshold': warning_threshold,
+                'warning_level': warning_level,
+                'warning_level_display': dict(StockWarningSnapshot.WARNING_LEVEL_CHOICES).get(warning_level, '正常'),
+                'gap_quantity': round(gap, 2),
+                'suggested_replenish': suggested,
+                'default_storage_area': v.default_storage_area,
+            })
+
+        warning_items.sort(key=lambda x: {
+            'critical': 0,
+            'low': 1,
+            'normal': 2
+        }.get(x['warning_level'], 3))
+
+        total = len(warning_items)
+        start_idx = (page_num - 1) * page_size
+        end_idx = start_idx + page_size
+        paged_items = warning_items[start_idx:end_idx]
+
+        return JsonResponse({
+            'items': paged_items,
+            'total': total,
+            'page': page_num,
+            'page_size': page_size,
+            'total_pages': (total + page_size - 1) // page_size if total > 0 else 1,
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)
+
+
+@login_required
+def api_warning_stats(request):
+    try:
+        from django.db.models import Sum
+
+        queryset = Variety.objects.filter(is_active=True).select_related('category', 'unit')
+
+        stats = {
+            'total': 0,
+            'critical': 0,
+            'low': 0,
+            'normal': 0,
+            'critical_items': [],
+            'total_gap': 0,
+        }
+
+        for v in queryset:
+            current_stock = _calc_variety_inventory(v)
+            warning_threshold = float(v.min_stock_warning or 0)
+            warning_level = _calc_warning_level(current_stock, warning_threshold)
+
+            stats['total'] += 1
+            stats[warning_level] += 1
+
+            gap = max(0, warning_threshold - current_stock)
+            stats['total_gap'] += gap
+
+            if warning_level == 'critical' and len(stats['critical_items']) < 5:
+                stats['critical_items'].append({
+                    'id': v.id,
+                    'code': v.code,
+                    'name': v.name,
+                    'current_stock': round(current_stock, 2),
+                    'warning_threshold': warning_threshold,
+                    'gap': round(gap, 2),
+                    'unit_name': v.unit.name if v.unit else '',
+                })
+
+        stats['total_gap'] = round(stats['total_gap'], 2)
+
+        return JsonResponse(stats)
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)
+
+
+@require_POST
+@login_required
+def api_warning_recalculate(request):
+    try:
+        from django.db.models import Sum
+        from datetime import datetime
+
+        today = timezone.now().date()
+        username = request.user.username if request.user.is_authenticated else ''
+
+        varieties = Variety.objects.filter(is_active=True).select_related('category', 'unit')
+
+        created_count = 0
+        updated_count = 0
+
+        for v in varieties:
+            current_stock = _calc_variety_inventory(v)
+            warning_threshold = float(v.min_stock_warning or 0)
+            warning_level = _calc_warning_level(current_stock, warning_threshold)
+            gap = max(0, warning_threshold - current_stock)
+            suggested = 0
+            if warning_level in ('critical', 'low'):
+                suggested = warning_threshold * 2 - current_stock
+                suggested = max(0, round(suggested, 2))
+
+            snapshot, created = StockWarningSnapshot.objects.update_or_create(
+                snapshot_date=today,
+                variety_code=v.code,
+                defaults={
+                    'variety_name': v.name,
+                    'category_code': v.category.code if v.category else '',
+                    'category_name': v.category.name if v.category else '',
+                    'unit_name': v.unit.name if v.unit else '',
+                    'current_stock': round(current_stock, 2),
+                    'warning_threshold': warning_threshold,
+                    'warning_level': warning_level,
+                    'gap_quantity': round(gap, 2),
+                    'suggested_replenish': suggested,
+                    'specification': v.specification or '',
+                    'default_storage_area': v.default_storage_area or '',
+                }
+            )
+            if created:
+                created_count += 1
+            else:
+                updated_count += 1
+
+        return JsonResponse({
+            'success': True,
+            'message': f'重算完成：新增 {created_count} 条，更新 {updated_count} 条快照记录',
+            'created_count': created_count,
+            'updated_count': updated_count,
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)
+
+
+@login_required
+def api_warning_restock_suggestion(request):
+    try:
+        from django.db.models import Sum
+
+        variety_ids = request.GET.get('ids', '').strip()
+        ids_list = []
+        if variety_ids:
+            ids_list = [int(x) for x in variety_ids.split(',') if x.strip().isdigit()]
+
+        if not ids_list:
+            critical_only = request.GET.get('critical_only', 'true') == 'true'
+            queryset = Variety.objects.filter(is_active=True).select_related('category', 'unit')
+            for v in queryset:
+                current_stock = _calc_variety_inventory(v)
+                warning_threshold = float(v.min_stock_warning or 0)
+                warning_level = _calc_warning_level(current_stock, warning_threshold)
+                if critical_only:
+                    if warning_level == 'critical':
+                        ids_list.append(v.id)
+                else:
+                    if warning_level in ('critical', 'low'):
+                        ids_list.append(v.id)
+
+        if not ids_list:
+            return JsonResponse({
+                'success': False,
+                'message': '没有需要补货的物资',
+            }, status=400)
+
+        items = []
+        total_suggested = 0
+
+        for vid in ids_list:
+            v = Variety.objects.filter(pk=vid).select_related('category', 'unit').first()
+            if not v:
+                continue
+
+            current_stock = _calc_variety_inventory(v)
+            warning_threshold = float(v.min_stock_warning or 0)
+            warning_level = _calc_warning_level(current_stock, warning_threshold)
+            gap = max(0, warning_threshold - current_stock)
+            suggested = 0
+            if warning_level in ('critical', 'low'):
+                suggested = warning_threshold * 2 - current_stock
+                suggested = max(0, round(suggested, 2))
+
+            total_suggested += suggested
+
+            items.append({
+                'id': v.id,
+                'code': v.code,
+                'name': v.name,
+                'specification': v.specification,
+                'category_name': v.category.name if v.category else '',
+                'unit_name': v.unit.name if v.unit else '',
+                'unit_abbr': v.unit.english_abbr if v.unit else '',
+                'current_stock': round(current_stock, 2),
+                'warning_threshold': warning_threshold,
+                'warning_level': warning_level,
+                'warning_level_display': dict(StockWarningSnapshot.WARNING_LEVEL_CHOICES).get(warning_level, '正常'),
+                'gap_quantity': round(gap, 2),
+                'suggested_replenish': suggested,
+                'default_storage_area': v.default_storage_area or '',
+            })
+
+        items.sort(key=lambda x: {
+            'critical': 0,
+            'low': 1,
+            'normal': 2
+        }.get(x['warning_level'], 3))
+
+        today = timezone.now().strftime('%Y-%m-%d')
+
+        return JsonResponse({
+            'success': True,
+            'suggestion_no': f'BH{today.replace("-", "")}{len(items):04d}',
+            'generate_date': today,
+            'items': items,
+            'total_count': len(items),
+            'total_suggested': round(total_suggested, 2),
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)
+
+
+@login_required
+def api_warning_snapshot_list(request):
+    try:
+        from datetime import datetime
+
+        snapshot_date = request.GET.get('snapshot_date', '').strip()
+        level = request.GET.get('level', '').strip()
+        category_code = request.GET.get('category_code', '').strip()
+        page_num = int(request.GET.get('page', 1))
+        page_size = int(request.GET.get('page_size', 10))
+
+        if not snapshot_date:
+            latest = StockWarningSnapshot.objects.order_by('-snapshot_date').first()
+            snapshot_date = latest.snapshot_date.strftime('%Y-%m-%d') if latest else timezone.now().strftime('%Y-%m-%d')
+
+        queryset = StockWarningSnapshot.objects.filter(snapshot_date=snapshot_date)
+
+        if level:
+            queryset = queryset.filter(warning_level=level)
+
+        if category_code:
+            queryset = queryset.filter(category_code=category_code)
+
+        queryset = queryset.order_by(
+            '-warning_level',
+            'variety_code'
+        )
+
+        total = queryset.count()
+        paginator = Paginator(queryset, page_size)
+        page = paginator.get_page(page_num)
+
+        items = []
+        for obj in page.object_list:
+            items.append({
+                'id': obj.id,
+                'snapshot_date': obj.snapshot_date.strftime('%Y-%m-%d'),
+                'variety_code': obj.variety_code,
+                'variety_name': obj.variety_name,
+                'category_code': obj.category_code,
+                'category_name': obj.category_name,
+                'unit_name': obj.unit_name,
+                'current_stock': str(obj.current_stock),
+                'warning_threshold': str(obj.warning_threshold),
+                'warning_level': obj.warning_level,
+                'warning_level_display': obj.get_warning_level_display(),
+                'gap_quantity': str(obj.gap_quantity),
+                'suggested_replenish': str(obj.suggested_replenish),
+                'specification': obj.specification,
+                'default_storage_area': obj.default_storage_area,
+            })
+
+        available_dates = list(
+            StockWarningSnapshot.objects.order_by('-snapshot_date')
+            .values_list('snapshot_date', flat=True)
+            .distinct()[:30]
+        )
+        available_dates = [d.strftime('%Y-%m-%d') for d in available_dates]
+
+        return JsonResponse({
+            'items': items,
+            'total': total,
+            'page': page_num,
+            'page_size': page_size,
+            'total_pages': paginator.num_pages,
+            'snapshot_date': snapshot_date,
+            'available_dates': available_dates,
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)
+
+
+@login_required
+def api_warning_snapshot_summary(request):
+    try:
+        from datetime import datetime
+
+        snapshot_date = request.GET.get('snapshot_date', '').strip()
+
+        if not snapshot_date:
+            latest = StockWarningSnapshot.objects.order_by('-snapshot_date').first()
+            snapshot_date = latest.snapshot_date.strftime('%Y-%m-%d') if latest else timezone.now().strftime('%Y-%m-%d')
+
+        queryset = StockWarningSnapshot.objects.filter(snapshot_date=snapshot_date)
+
+        stats = {
+            'snapshot_date': snapshot_date,
+            'total': queryset.count(),
+            'critical': queryset.filter(warning_level='critical').count(),
+            'low': queryset.filter(warning_level='low').count(),
+            'normal': queryset.filter(warning_level='normal').count(),
+        }
+
+        available_dates = list(
+            StockWarningSnapshot.objects.order_by('-snapshot_date')
+            .values_list('snapshot_date', flat=True)
+            .distinct()[:30]
+        )
+        stats['available_dates'] = [d.strftime('%Y-%m-%d') for d in available_dates]
+
+        return JsonResponse(stats)
     except Exception as e:
         return JsonResponse({'success': False, 'message': str(e)}, status=400)

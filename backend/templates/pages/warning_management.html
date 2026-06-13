@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/warning_management.css">
+{% endblock %}
+
+{% block content %}
+<div class="wm-page">
+    {% csrf_token %}
+    <div class="wm-main-layout">
+        <div class="wm-content">
+            <div class="wm-stats-row">
+                <div class="wm-stat-card wm-stat-critical" data-level="critical">
+                    <div class="wm-stat-icon">
+                        <i class="bi bi-exclamation-octagon-fill"></i>
+                    </div>
+                    <div class="wm-stat-info">
+                        <div class="wm-stat-value" id="wm-stat-critical">0</div>
+                        <div class="wm-stat-label">紧缺</div>
+                    </div>
+                </div>
+                <div class="wm-stat-card wm-stat-low" data-level="low">
+                    <div class="wm-stat-icon">
+                        <i class="bi bi-exclamation-triangle-fill"></i>
+                    </div>
+                    <div class="wm-stat-info">
+                        <div class="wm-stat-value" id="wm-stat-low">0</div>
+                        <div class="wm-stat-label">偏低</div>
+                    </div>
+                </div>
+                <div class="wm-stat-card wm-stat-normal" data-level="normal">
+                    <div class="wm-stat-icon">
+                        <i class="bi bi-check-circle-fill"></i>
+                    </div>
+                    <div class="wm-stat-info">
+                        <div class="wm-stat-value" id="wm-stat-normal">0</div>
+                        <div class="wm-stat-label">正常</div>
+                    </div>
+                </div>
+                <div class="wm-stat-card wm-stat-total">
+                    <div class="wm-stat-icon">
+                        <i class="bi bi-grid-3x3-gap-fill"></i>
+                    </div>
+                    <div class="wm-stat-info">
+                        <div class="wm-stat-value" id="wm-stat-total">0</div>
+                        <div class="wm-stat-label">品种总数</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="wm-section">
+                <div class="wm-section-header">
+                    <div class="wm-header-left">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        <span>库存预警列表</span>
+                    </div>
+                    <div class="wm-header-right">
+                        <button id="wm-recalculate-btn" class="btn-tech">
+                            <i class="bi bi-arrow-clockwise"></i> 全量重算
+                        </button>
+                        <button id="wm-restock-btn" class="btn-tech wm-btn-primary">
+                            <i class="bi bi-cart-plus"></i> 生成补货建议
+                        </button>
+                    </div>
+                </div>
+
+                <div class="wm-filters">
+                    <div class="wm-filter-group">
+                        <label>预警等级</label>
+                        <select id="wm-filter-level" class="input-tech">
+                            <option value="">全部等级</option>
+                            <option value="critical">紧缺</option>
+                            <option value="low">偏低</option>
+                            <option value="normal">正常</option>
+                        </select>
+                    </div>
+                    <div class="wm-filter-group">
+                        <label>所属品类</label>
+                        <select id="wm-filter-category" class="input-tech">
+                            <option value="">全部品类</option>
+                        </select>
+                    </div>
+                    <div class="wm-filter-group">
+                        <label>关键词</label>
+                        <input type="text" id="wm-filter-keyword" class="input-tech" placeholder="品种名称/编码">
+                    </div>
+                    <button id="wm-filter-btn" class="btn-tech">筛选</button>
+                    <button id="wm-reset-btn" class="btn-tech btn-cancel">重置</button>
+                </div>
+
+                <div class="wm-table-wrapper">
+                    <table class="wm-table">
+                        <thead>
+                            <tr>
+                                <th>预警等级</th>
+                                <th>品种编码</th>
+                                <th>物资名称</th>
+                                <th>规格型号</th>
+                                <th>所属品类</th>
+                                <th>当前库存</th>
+                                <th>预警阈值</th>
+                                <th>缺口数量</th>
+                                <th>建议补货量</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="wm-table-body">
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="wm-pagination">
+                    <span id="wm-page-info" class="wm-page-info"></span>
+                    <div class="wm-page-btns">
+                        <button id="wm-page-prev" class="btn-tech btn-cancel" disabled>&laquo; 上一页</button>
+                        <button id="wm-page-next" class="btn-tech btn-cancel" disabled>下一页 &raquo;</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="wm-section wm-history-section">
+                <div class="wm-section-header">
+                    <div class="wm-header-left">
+                        <i class="bi bi-clock-history"></i>
+                        <span>历史预警快照</span>
+                        <span id="wm-snapshot-date-badge" class="wm-snapshot-date-badge" style="display:none;"></span>
+                    </div>
+                    <div class="wm-header-right">
+                        <div class="wm-history-filter">
+                            <label>快照日期</label>
+                            <select id="wm-snapshot-date" class="input-tech">
+                                <option value="">暂无快照</option>
+                            </select>
+                        </div>
+                        <button id="wm-load-snapshot-btn" class="btn-tech">
+                            <i class="bi bi-eye"></i> 查看快照
+                        </button>
+                        <button id="wm-back-realtime-btn" class="btn-tech btn-cancel" style="display:none;">
+                            <i class="bi bi-arrow-left"></i> 返回实时
+                        </button>
+                    </div>
+                </div>
+
+                <div class="wm-history-stats">
+                    <div class="wm-history-stat">
+                        <span class="wm-history-label">紧缺</span>
+                        <span class="wm-history-value wm-history-critical" id="wm-history-critical">0</span>
+                    </div>
+                    <div class="wm-history-stat">
+                        <span class="wm-history-label">偏低</span>
+                        <span class="wm-history-value wm-history-low" id="wm-history-low">0</span>
+                    </div>
+                    <div class="wm-history-stat">
+                        <span class="wm-history-label">正常</span>
+                        <span class="wm-history-value wm-history-normal" id="wm-history-normal">0</span>
+                    </div>
+                    <div class="wm-history-stat">
+                        <span class="wm-history-label">总计</span>
+                        <span class="wm-history-value" id="wm-history-total">0</span>
+                    </div>
+                </div>
+
+                <div class="wm-table-wrapper">
+                    <table class="wm-table">
+                        <thead>
+                            <tr>
+                                <th>预警等级</th>
+                                <th>品种编码</th>
+                                <th>物资名称</th>
+                                <th>所属品类</th>
+                                <th>当前库存</th>
+                                <th>预警阈值</th>
+                                <th>缺口数量</th>
+                                <th>建议补货量</th>
+                            </tr>
+                        </thead>
+                        <tbody id="wm-history-body">
+                            <tr class="wm-empty-row">
+                                <td colspan="8">请选择日期并点击"查看快照"以浏览历史预警状态</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="wm-pagination">
+                    <span id="wm-history-page-info" class="wm-page-info"></span>
+                    <div class="wm-page-btns">
+                        <button id="wm-history-page-prev" class="btn-tech btn-cancel" disabled>&laquo; 上一页</button>
+                        <button id="wm-history-page-next" class="btn-tech btn-cancel" disabled>下一页 &raquo;</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="wm-restock-modal" class="modal-overlay">
+    <div class="modal-tech wm-restock-modal">
+        <h3 id="wm-restock-title">补货建议单</h3>
+        <div class="wm-restock-header">
+            <div class="wm-restock-meta">
+                <div><span class="wm-restock-label">建议单号：</span><span id="wm-restock-no" class="wm-restock-value"></span></div>
+                <div><span class="wm-restock-label">生成日期：</span><span id="wm-restock-date" class="wm-restock-value"></span></div>
+                <div><span class="wm-restock-label">物资总数：</span><span id="wm-restock-count" class="wm-restock-value"></span></div>
+                <div><span class="wm-restock-label">建议补货总量：</span><span id="wm-restock-total" class="wm-restock-value wm-restock-total"></span></div>
+            </div>
+        </div>
+        <div class="wm-restock-table-wrapper">
+            <table class="wm-restock-table">
+                <thead>
+                    <tr>
+                        <th>编码</th>
+                        <th>物资名称</th>
+                        <th>规格</th>
+                        <th>品类</th>
+                        <th>单位</th>
+                        <th>当前库存</th>
+                        <th>预警阈值</th>
+                        <th>缺口</th>
+                        <th>建议入库量</th>
+                    </tr>
+                </thead>
+                <tbody id="wm-restock-body">
+                </tbody>
+            </table>
+        </div>
+        <div class="modal-btns">
+            <button type="button" id="wm-restock-close" class="btn-tech btn-cancel">关闭</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/js/warning_management.js"></script>
+{% endblock %}
