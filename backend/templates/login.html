@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/login.css">
+{% endblock %}
+
+{% block body_class %}login-page-body{% endblock %}
+{% block container_class %}full-screen{% endblock %}
+{% block layout_class %}full-screen{% endblock %}
+{% block wrapper_class %}full-screen centered-content{% endblock %}
+
+{% block sidebar %}{% endblock %}
+{% block header %}{% endblock %}
+{% block main_path %}{% endblock %}
+
+{% block content %}
+<!-- 背景画布 -->
+<canvas id="bg-canvas"></canvas>
+
+<div class="login-box">
+    <div class="login-title">
+        <h1>系统登录</h1>
+        <p>Warehouse Management System</p>
+    </div>
+
+    <form onsubmit="login(event)">
+        {% csrf_token %}
+        <div class="form-group">
+            <input type="text" name="username" class="input-tech" placeholder="请输入用户名" required>
+        </div>
+        <div class="form-group">
+            <input type="password" name="password" class="input-tech" placeholder="请输入密码" required>
+        </div>
+
+        <div class="captcha-wrapper">
+            <div id="captcha-display" title="点击刷新" onclick="UI.initCaptcha('captcha-display')"></div>
+            <input type="text" name="captcha" class="input-tech login-captcha-input" placeholder="计算结果" required>
+        </div>
+
+        <button type="submit" class="btn-tech login-submit-btn">
+            立即验证并进入
+        </button>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/js/login.js"></script>
+{% endblock %}

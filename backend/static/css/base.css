@@ -1,0 +1,329 @@
+:root {
+    --primary-blue: #00d2ff;
+    --dark-blue: #001f3f;
+    --accent-blue: #0074d9;
+    --bg-dark: #020b1a;
+    --text-glow: 0 0 10px rgba(0, 210, 255, 0.7);
+    --panel-bg: rgba(0, 20, 40, 0.8);
+    --border-glow: 1px solid rgba(0, 210, 255, 0.3);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif;
+}
+
+body {
+    background-color: var(--bg-dark);
+    color: #fff;
+    overflow-x: hidden;
+}
+
+/* 按钮模块 */
+.btn-tech {
+    background: transparent;
+    border: 1px solid var(--primary-blue);
+    color: var(--primary-blue);
+    padding: 10px 25px;
+    cursor: pointer;
+    font-weight: bold;
+    text-transform: uppercase;
+    transition: all 0.3s ease;
+    clip-path: polygon(10% 0, 100% 0, 90% 100%, 0% 100%);
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-tech:hover {
+    background: var(--primary-blue);
+    color: var(--bg-dark);
+    box-shadow: var(--text-glow);
+}
+
+/* 表单模块 */
+.input-tech {
+    background: rgba(0, 50, 100, 0.2);
+    border: 1px solid rgba(0, 210, 255, 0.3);
+    color: #fff;
+    padding: 12px 15px;
+    width: 100%;
+    margin-bottom: 20px;
+    outline: none;
+    transition: border 0.3s;
+}
+
+.input-tech:focus {
+    border-color: var(--primary-blue);
+    box-shadow: inset 0 0 5px rgba(0, 210, 255, 0.2);
+}
+
+/* 布局模块 */
+.app-container {
+    display: flex;
+    min-height: 100vh;
+}
+
+/* 菜单栏模块 */
+.sidebar-tech {
+    width: 260px;
+    background: linear-gradient(180deg, #001020 0%, #000 100%);
+    border-right: 1px solid rgba(0, 210, 255, 0.2);
+    padding: 20px 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar-brand {
+    padding: 0 20px 30px;
+    text-align: center;
+    border-bottom: 1px solid rgba(0, 210, 255, 0.1);
+    margin-bottom: 20px;
+}
+
+.sidebar-brand h2 {
+    color: var(--primary-blue);
+    font-size: 1.2rem;
+    letter-spacing: 2px;
+    text-shadow: var(--text-glow);
+}
+
+.menu-item {
+    padding: 12px 25px;
+    color: rgba(255, 255, 255, 0.7);
+    text-decoration: none;
+    font-size: 0.95rem;
+    display: flex;
+    align-items: center;
+    transition: all 0.3s;
+    border-left: 3px solid transparent;
+}
+
+.menu-item i {
+    margin-right: 15px;
+}
+
+.menu-item:hover,
+.menu-item.active {
+    background: rgba(0, 210, 255, 0.1);
+    color: var(--primary-blue);
+    border-left-color: var(--primary-blue);
+}
+
+.submenu {
+    padding-left: 20px;
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.submenu-item {
+    padding: 10px 25px;
+    display: block;
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.5);
+    text-decoration: none;
+    transition: color 0.3s;
+}
+
+.submenu-item:hover {
+    color: var(--primary-blue);
+}
+
+/* 顶部模块 */
+.header-tech {
+    height: 70px;
+    background: rgba(0, 10, 20, 0.9);
+    border-bottom: 1px solid rgba(0, 210, 255, 0.2);
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    padding: 0 30px;
+    backdrop-filter: blur(10px);
+}
+
+.user-profile {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    color: var(--primary-blue);
+    font-weight: 500;
+}
+
+.user-profile i {
+    margin-left: 10px;
+}
+
+/* 弹窗模块 (自定义) */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.85);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    backdrop-filter: blur(5px);
+}
+
+.modal-tech {
+    background: var(--panel-bg);
+    border: var(--border-glow);
+    padding: 30px;
+    max-width: 450px;
+    width: 90%;
+    box-shadow: 0 0 30px rgba(0, 210, 255, 0.2);
+    text-align: center;
+}
+
+.modal-tech h3 {
+    margin-bottom: 20px;
+    color: var(--primary-blue);
+}
+
+.modal-tech p {
+    margin-bottom: 30px;
+    color: rgba(255, 255, 255, 0.8);
+    line-height: 1.6;
+}
+
+.modal-btns {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+}
+
+/* 加载动画模块 */
+.loader-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--bg-dark);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+}
+
+.tech-loader {
+    width: 80px;
+    height: 80px;
+    border: 3px solid transparent;
+    border-top-color: var(--primary-blue);
+    border-bottom-color: var(--primary-blue);
+    border-radius: 50%;
+    animation: spin 1.5s linear infinite;
+    position: relative;
+}
+
+.tech-loader::after {
+    content: '';
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    bottom: 10px;
+    border: 3px solid transparent;
+    border-left-color: #fff;
+    border-right-color: #fff;
+    border-radius: 50%;
+    animation: spin-reverse 1s linear infinite;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes spin-reverse {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(-360deg);
+    }
+}
+
+/* 提示框 */
+.toast-tech {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: var(--panel-bg);
+    border-left: 5px solid var(--primary-blue);
+    padding: 15px 25px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    color: #fff;
+    z-index: 3000;
+    transform: translateX(120%);
+    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.toast-tech.active {
+    transform: translateX(0);
+}
+
+.toast-tech.error {
+    border-left-color: #ff4136;
+}
+
+/* 新增工具类 */
+.static-nav-item {
+    cursor: default;
+    opacity: 1;
+}
+
+.main-layout {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.content-wrapper {
+    padding: 40px;
+    overflow-y: auto;
+}
+
+.path-display {
+    margin-bottom: 20px;
+    font-size: 0.8rem;
+    color: #555;
+}
+
+.btn-cancel {
+    border-color: #666 !important;
+    color: #999 !important;
+}
+
+.login-page-body {
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: radial-gradient(circle at center, #001a33 0%, #000 100%);
+    position: relative;
+    overflow: hidden;
+}
+
+.full-screen {
+    width: 100%;
+    height: 100vh;
+    flex: 1;
+}
+
+.centered-content {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 0 !important;
+}

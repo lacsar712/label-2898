@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh-hans">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }} - 第六师兵团库房管理系统</title>
+    <!-- 引入基础模块 -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="/static/css/base.css">
+    {% block extra_css %}{% endblock %}
+</head>
+
+<body class="{% block body_class %}{% endblock %}">
+    <!-- 加载动画模块 -->
+    <div class="loader-overlay">
+        <div class="tech-loader"></div>
+    </div>
+
+    <!-- 弹窗显示模块 -->
+    <div id="modal-overlay" class="modal-overlay">
+        <div class="modal-tech">
+            <h3>提示</h3>
+            <p>内容信息</p>
+            <div class="modal-btns">
+                <button id="modal-cancel" class="btn-tech btn-cancel">取消</button>
+                <button id="modal-confirm" class="btn-tech">确定</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="app-container {% block container_class %}{% endblock %}">
+        {% block sidebar %}
+        <!-- 侧边菜单模块 -->
+        <aside class="sidebar-tech">
+            <div class="sidebar-brand">
+                <h2>库房系统 v2.0</h2>
+            </div>
+            <nav>
+                <a href="/" class="menu-item {% if page_name == 'dashboard' %}active{% endif %}">
+                    <i class="bi bi-speedometer2"></i> 仪表盘
+                </a>
+                <a href="/goods-entry/" class="menu-item {% if page_name == 'goods-entry' %}active{% endif %}">
+                    <i class="bi bi-box-seam"></i> 货物入库
+                </a>
+
+                <div class="menu-group">
+                    <div class="menu-item static-nav-item">
+                        <i class="bi bi-grid"></i> 类型管理
+                    </div>
+                    <div class="submenu">
+                        <a href="/unit-management/"
+                            class="submenu-item {% if page_name == 'unit-management' %}active{% endif %}">单位管理</a>
+                        <a href="/category-management/"
+                            class="submenu-item {% if page_name == 'category-management' %}active{% endif %}">品类管理</a>
+                        <a href="/variety-management/"
+                            class="submenu-item {% if page_name == 'variety-management' %}active{% endif %}">品种管理</a>
+                    </div>
+                </div>
+
+                <a href="/query-export/" class="menu-item {% if page_name == 'query-export' %}active{% endif %}">
+                    <i class="bi bi-search"></i> 查询导出
+                </a>
+                <a href="/daily-report/" class="menu-item {% if page_name == 'daily-report' %}active{% endif %}">
+                    <i class="bi bi-file-earmark-text"></i> 每日报表
+                </a>
+                <a href="/warning/" class="menu-item {% if page_name == 'warning' %}active{% endif %}">
+                    <i class="bi bi-exclamation-triangle"></i> 预警
+                </a>
+                <a href="/approval/" class="menu-item {% if page_name == 'approval' %}active{% endif %}">
+                    <i class="bi bi-shield-check"></i> 审批区域
+                </a>
+
+                <div class="menu-group">
+                    <div class="menu-item static-nav-item">
+                        <i class="bi bi-people"></i> 人员管理
+                    </div>
+                    <div class="submenu">
+                        <a href="/attendance-staff/"
+                            class="submenu-item {% if page_name == 'attendance-staff' %}active{% endif %}">考勤人员管理</a>
+                        <a href="/outbound-staff/"
+                            class="submenu-item {% if page_name == 'outbound-staff' %}active{% endif %}">出库人员管理</a>
+                    </div>
+                </div>
+            </nav>
+        </aside>
+        {% endblock %}
+
+        <!-- 主内容区域 -->
+        <div class="main-layout {% block layout_class %}{% endblock %}">
+            {% block header %}
+            <!-- 顶部标题框 -->
+            <header class="header-tech">
+                {% if user.is_authenticated %}
+                <div class="user-profile" onclick="handleLogout()">
+                    <span>{{ user.username }}</span>
+                    <i class="bi bi-person-circle"></i>
+                </div>
+                {% endif %}
+            </header>
+            {% endblock %}
+
+            <main class="content-wrapper {% block wrapper_class %}{% endblock %}">
+                {% block main_path %}
+                <div class="path-display">
+                    <!-- 英文路径显示 -->
+                    PATH: localhost:2898/sidebar/{{ page_name }}
+                </div>
+                {% endblock %}
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+
+    <!-- 脚本引入 -->
+    <script src="/static/js/ui.js"></script>
+    <script src="/static/js/auth.js"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+
+</html>
