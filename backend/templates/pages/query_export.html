@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/query_export.css">
+{% endblock %}
+
+{% block content %}
+<div class="qe-page">
+    <div class="qe-section qe-filter-section">
+        <div class="qe-section-header">
+            <i class="bi bi-funnel"></i>
+            <span>联合检索</span>
+            <div class="qe-template-area">
+                <select id="qe-template-select" class="input-tech qe-template-select">
+                    <option value="">-- 选择筛选模板 --</option>
+                </select>
+                <button id="qe-template-save-btn" class="btn-tech qe-sm-btn" title="保存为模板">
+                    <i class="bi bi-bookmark-plus"></i>
+                </button>
+                <button id="qe-template-delete-btn" class="btn-tech qe-sm-btn qe-btn-danger" title="删除选中模板" disabled>
+                    <i class="bi bi-trash3"></i>
+                </button>
+            </div>
+        </div>
+        <form id="qe-filter-form" class="qe-filter-form">
+            {% csrf_token %}
+            <div class="qe-filter-grid">
+                <div class="qe-filter-group">
+                    <label>物资名称</label>
+                    <input type="text" id="qe-f-material-name" class="input-tech" placeholder="模糊搜索物资名称">
+                </div>
+                <div class="qe-filter-group">
+                    <label>品类</label>
+                    <select id="qe-f-category" class="input-tech">
+                        <option value="">全部品类</option>
+                    </select>
+                </div>
+                <div class="qe-filter-group">
+                    <label>品种</label>
+                    <select id="qe-f-variety" class="input-tech">
+                        <option value="">全部品种</option>
+                    </select>
+                </div>
+                <div class="qe-filter-group">
+                    <label>单据类型</label>
+                    <select id="qe-f-doc-type" class="input-tech">
+                        <option value="">全部类型</option>
+                        <option value="inbound">入库</option>
+                        <option value="outbound">出库</option>
+                    </select>
+                </div>
+                <div class="qe-filter-group qe-filter-daterange">
+                    <label>日期区间</label>
+                    <div class="qe-daterange-inputs">
+                        <input type="date" id="qe-f-date-start" class="input-tech">
+                        <span class="qe-daterange-sep">至</span>
+                        <input type="date" id="qe-f-date-end" class="input-tech">
+                    </div>
+                </div>
+                <div class="qe-filter-group">
+                    <label>经办人</label>
+                    <select id="qe-f-handler" class="input-tech">
+                        <option value="">全部经办人</option>
+                    </select>
+                </div>
+                <div class="qe-filter-group">
+                    <label>单据状态</label>
+                    <select id="qe-f-status" class="input-tech">
+                        <option value="">全部状态</option>
+                        <option value="effective">有效</option>
+                        <option value="voided">已作废</option>
+                    </select>
+                </div>
+            </div>
+            <div class="qe-filter-actions">
+                <button type="submit" class="btn-tech"><i class="bi bi-search"></i> 查询</button>
+                <button type="button" id="qe-clear-btn" class="btn-tech btn-cancel"><i class="bi bi-x-circle"></i> 一键清空</button>
+                <button type="button" id="qe-export-btn" class="btn-tech qe-btn-export"><i class="bi bi-download"></i> 导出CSV</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="qe-section qe-result-section">
+        <div class="qe-section-header">
+            <i class="bi bi-table"></i>
+            <span>查询结果</span>
+        </div>
+        <div id="qe-summary" class="qe-summary" style="display:none;">
+            <div class="qe-summary-item">
+                <span class="qe-summary-label">记录总数</span>
+                <span id="qe-s-total-count" class="qe-summary-value">0</span>
+            </div>
+            <div class="qe-summary-item">
+                <span class="qe-summary-label">数量合计</span>
+                <span id="qe-s-total-quantity" class="qe-summary-value">0</span>
+            </div>
+            <div class="qe-summary-divider"></div>
+            <div class="qe-summary-item qe-summary-inbound">
+                <span class="qe-summary-label">入库</span>
+                <span id="qe-s-inbound-count" class="qe-summary-value-sm">0</span>
+                <span class="qe-summary-sub">条 /</span>
+                <span id="qe-s-inbound-qty" class="qe-summary-value-sm">0</span>
+            </div>
+            <div class="qe-summary-item qe-summary-outbound">
+                <span class="qe-summary-label">出库</span>
+                <span id="qe-s-outbound-count" class="qe-summary-value-sm">0</span>
+                <span class="qe-summary-sub">条 /</span>
+                <span id="qe-s-outbound-qty" class="qe-summary-value-sm">0</span>
+            </div>
+        </div>
+        <div class="qe-table-wrapper">
+            <table class="qe-table">
+                <thead>
+                    <tr>
+                        <th>单号</th>
+                        <th>单据类型</th>
+                        <th>物资名称</th>
+                        <th>品类</th>
+                        <th>品种</th>
+                        <th>数量</th>
+                        <th>单位</th>
+                        <th>日期</th>
+                        <th>经办人</th>
+                        <th>状态</th>
+                    </tr>
+                </thead>
+                <tbody id="qe-table-body">
+                </tbody>
+            </table>
+        </div>
+        <div class="qe-pagination">
+            <span id="qe-page-info" class="qe-page-info"></span>
+            <div class="qe-page-btns">
+                <button id="qe-page-prev" class="btn-tech btn-cancel" disabled>&laquo; 上一页</button>
+                <button id="qe-page-next" class="btn-tech btn-cancel" disabled>下一页 &raquo;</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="qe-template-modal" class="modal-overlay">
+    <div class="modal-tech qe-template-modal-inner">
+        <h3>保存筛选模板</h3>
+        <div class="qe-template-form">
+            <label>模板名称</label>
+            <input type="text" id="qe-template-name" class="input-tech" placeholder="输入模板名称" maxlength="100">
+        </div>
+        <div class="modal-btns">
+            <button id="qe-template-modal-cancel" class="btn-tech btn-cancel">取消</button>
+            <button id="qe-template-modal-confirm" class="btn-tech">保存</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/js/query_export.js"></script>
+{% endblock %}

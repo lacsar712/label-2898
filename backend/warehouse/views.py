@@ -8,7 +8,7 @@ from django.utils import timezone
 from django.db.models import Q
 import json
 
-from .models import CategoryArchive, VarietyArchive, UnitArchive, GoodsEntry, Unit, MaterialCategory, Variety
+from .models import CategoryArchive, VarietyArchive, UnitArchive, GoodsEntry, Unit, MaterialCategory, Variety, GoodsOutbound, QueryTemplate
 
 
 def user_login(request):
@@ -805,5 +805,391 @@ def api_storage_areas(request):
         areas = GoodsEntry.objects.order_by().values_list('storage_area', flat=True).distinct()
         area_list = [a for a in areas if a and a.strip()]
         return JsonResponse(area_list, safe=False)
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)
+
+
+def _build_union_queryset(filters):
+    from django.db.models import F, Value, CharField
+    from django.db.models.functions import Coalesce
+
+    entries = GoodsEntry.objects.filter(is_deleted=False).annotate(
+        doc_type=Value('inbound', output_field=CharField()),
+        doc_type_display=Value('入库', output_field=CharField()),
+        doc_no=F('entry_no'),
+        doc_date=F('entry_date'),
+    ).values(
+        'id', 'doc_type', 'doc_type_display', 'doc_no', 'doc_date',
+        'material_name', 'category', 'variety', 'quantity', 'unit',
+        'handler', 'status', 'created_at'
+    )
+
+    outbounds = GoodsOutbound.objects.filter(is_deleted=False).annotate(
+        doc_type=Value('outbound', output_field=CharField()),
+        doc_type_display=Value('出库', output_field=CharField()),
+        doc_no=F('outbound_no'),
+        doc_date=F('outbound_date'),
+    ).values(
+        'id', 'doc_type', 'doc_type_display', 'doc_no', 'doc_date',
+        'material_name', 'category', 'variety', 'quantity', 'unit',
+        'handler', 'status', 'created_at'
+    )
+
+    material_name = filters.get('material_name', '').strip()
+    category = filters.get('category', '').strip()
+    variety = filters.get('variety', '').strip()
+    doc_type = filters.get('doc_type', '').strip()
+    date_start = filters.get('date_start', '').strip()
+    date_end = filters.get('date_end', '').strip()
+    handler = filters.get('handler', '').strip()
+    status = filters.get('status', '').strip()
+
+    if material_name:
+        entries = entries.filter(material_name__icontains=material_name)
+        outbounds = outbounds.filter(material_name__icontains=material_name)
+    if category:
+        entries = entries.filter(category=category)
+        outbounds = outbounds.filter(category=category)
+    if variety:
+        entries = entries.filter(variety=variety)
+        outbounds = outbounds.filter(variety=variety)
+    if handler:
+        entries = entries.filter(handler__icontains=handler)
+        outbounds = outbounds.filter(handler__icontains=handler)
+    if status:
+        entries = entries.filter(status=status)
+        outbounds = outbounds.filter(status=status)
+    if date_start:
+        entries = entries.filter(entry_date__gte=date_start)
+        outbounds = outbounds.filter(outbound_date__gte=date_start)
+    if date_end:
+        entries = entries.filter(entry_date__lte=date_end)
+        outbounds = outbounds.filter(outbound_date__lte=date_end)
+
+    if doc_type == 'inbound':
+        return entries
+    elif doc_type == 'outbound':
+        return outbounds
+    else:
+        return entries.union(outbounds)
+
+
+@login_required
+def api_query_records(request):
+    try:
+        filters = {
+            'material_name': request.GET.get('material_name', ''),
+            'category': request.GET.get('category', ''),
+            'variety': request.GET.get('variety', ''),
+            'doc_type': request.GET.get('doc_type', ''),
+            'date_start': request.GET.get('date_start', ''),
+            'date_end': request.GET.get('date_end', ''),
+            'handler': request.GET.get('handler', ''),
+            'status': request.GET.get('status', ''),
+        }
+
+        has_filter = any(v.strip() for v in filters.values())
+
+        if not has_filter:
+            from datetime import timedelta
+            thirty_days_ago = (timezone.now().date() - timedelta(days=30)).strftime('%Y-%m-%d')
+            filters['date_start'] = thirty_days_ago
+
+        queryset = _build_union_queryset(filters)
+        queryset = queryset.order_by('-doc_date', '-created_at')
+
+        page_num = int(request.GET.get('page', 1))
+        page_size = int(request.GET.get('page_size', 10))
+        paginator = Paginator(queryset, page_size)
+        page = paginator.get_page(page_num)
+
+        items = []
+        for obj in page.object_list:
+            status_display = '有效' if obj['status'] == 'effective' else '已作废'
+            items.append({
+                'id': obj['id'],
+                'doc_type': obj['doc_type'],
+                'doc_type_display': obj['doc_type_display'],
+                'doc_no': obj['doc_no'],
+                'doc_date': obj['doc_date'].strftime('%Y-%m-%d') if hasattr(obj['doc_date'], 'strftime') else str(obj['doc_date']),
+                'material_name': obj['material_name'],
+                'category': obj['category'],
+                'variety': obj['variety'],
+                'quantity': str(obj['quantity']),
+                'unit': obj['unit'],
+                'handler': obj['handler'],
+                'status': obj['status'],
+                'status_display': status_display,
+            })
+
+        total_count = paginator.count
+
+        all_items = list(queryset)
+        total_quantity = 0
+        for item in all_items:
+            try:
+                total_quantity += float(item['quantity'])
+            except (ValueError, TypeError):
+                pass
+
+        inbound_count = 0
+        outbound_count = 0
+        inbound_qty = 0
+        outbound_qty = 0
+        for item in all_items:
+            qty = float(item['quantity']) if item['quantity'] else 0
+            if item['doc_type'] == 'inbound':
+                inbound_count += 1
+                inbound_qty += qty
+            else:
+                outbound_count += 1
+                outbound_qty += qty
+
+        return JsonResponse({
+            'items': items,
+            'total': total_count,
+            'page': page_num,
+            'page_size': page_size,
+            'total_pages': paginator.num_pages,
+            'summary': {
+                'total_count': total_count,
+                'total_quantity': round(total_quantity, 2),
+                'inbound_count': inbound_count,
+                'outbound_count': outbound_count,
+                'inbound_quantity': round(inbound_qty, 2),
+                'outbound_quantity': round(outbound_qty, 2),
+            }
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)
+
+
+@login_required
+def api_export_csv(request):
+    import csv
+    from django.http import HttpResponse
+    from io import StringIO
+
+    try:
+        filters = {
+            'material_name': request.GET.get('material_name', ''),
+            'category': request.GET.get('category', ''),
+            'variety': request.GET.get('variety', ''),
+            'doc_type': request.GET.get('doc_type', ''),
+            'date_start': request.GET.get('date_start', ''),
+            'date_end': request.GET.get('date_end', ''),
+            'handler': request.GET.get('handler', ''),
+            'status': request.GET.get('status', ''),
+        }
+
+        has_filter = any(v.strip() for v in filters.values())
+
+        if not has_filter:
+            from datetime import timedelta
+            thirty_days_ago = (timezone.now().date() - timedelta(days=30)).strftime('%Y-%m-%d')
+            filters['date_start'] = thirty_days_ago
+
+        queryset = _build_union_queryset(filters)
+        queryset = queryset.order_by('-doc_date', '-created_at')
+
+        buffer = StringIO()
+        writer = csv.writer(buffer)
+
+        headers = ['单号', '单据类型', '物资名称', '品类', '品种', '数量', '单位', '日期', '经办人', '状态']
+        writer.writerow(headers)
+
+        for obj in queryset:
+            status_display = '有效' if obj['status'] == 'effective' else '已作废'
+            doc_date = obj['doc_date'].strftime('%Y-%m-%d') if hasattr(obj['doc_date'], 'strftime') else str(obj['doc_date'])
+            writer.writerow([
+                obj['doc_no'],
+                obj['doc_type_display'],
+                obj['material_name'],
+                obj['category'],
+                obj['variety'],
+                str(obj['quantity']),
+                obj['unit'],
+                doc_date,
+                obj['handler'],
+                status_display,
+            ])
+
+        csv_content = buffer.getvalue()
+        buffer.close()
+
+        response = HttpResponse(content_type='text/csv; charset=utf-8')
+        filename = f'出入库记录_{timezone.now().strftime("%Y%m%d%H%M%S")}.csv'
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+        response.write('\ufeff'.encode('utf-8'))
+        response.write(csv_content.encode('utf-8'))
+
+        return response
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)
+
+
+@login_required
+def api_query_filter_options(request):
+    try:
+        from django.db.models import Q
+
+        entry_handlers = GoodsEntry.objects.filter(is_deleted=False).values_list('handler', flat=True).distinct()
+        outbound_handlers = GoodsOutbound.objects.filter(is_deleted=False).values_list('handler', flat=True).distinct()
+        handlers = sorted(set(list(entry_handlers) + list(outbound_handlers)))
+        handlers = [h for h in handlers if h and h.strip()]
+
+        categories = list(MaterialCategory.objects.filter(
+            parent__isnull=True
+        ).order_by('sort_weight', 'id').values('id', 'code', 'name'))
+
+        varieties = list(Variety.objects.filter(
+            is_active=True
+        ).select_related('category').order_by('code').values('id', 'name', 'category_id', 'category__name'))
+
+        return JsonResponse({
+            'handlers': handlers,
+            'categories': [{'id': c['id'], 'name': c['name'], 'code': c['code']} for c in categories],
+            'varieties': [{'id': v['id'], 'name': v['name'], 'category_id': v['category_id'], 'category_name': v['category__name']} for v in varieties],
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)
+
+
+@login_required
+def query_export_page(request):
+    return render(request, 'pages/query_export.html', {'title': '查询导出', 'page_name': 'query-export'})
+
+
+@login_required
+def api_query_templates(request):
+    try:
+        template_type = request.GET.get('template_type', 'query_export')
+        templates = QueryTemplate.objects.filter(
+            template_type=template_type,
+            user=request.user.username if request.user.is_authenticated else ''
+        ).order_by('sort_weight', '-created_at')
+
+        items = []
+        for tpl in templates:
+            items.append({
+                'id': tpl.id,
+                'name': tpl.name,
+                'template_type': tpl.template_type,
+                'filter_data': json.loads(tpl.filter_data) if tpl.filter_data else {},
+                'is_default': tpl.is_default,
+                'sort_weight': tpl.sort_weight,
+                'created_at': tpl.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                'updated_at': tpl.updated_at.strftime('%Y-%m-%d %H:%M:%S'),
+            })
+
+        return JsonResponse({'items': items})
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)
+
+
+@require_POST
+@login_required
+def api_query_template_create(request):
+    try:
+        data = json.loads(request.body)
+        name = data.get('name', '').strip()
+        template_type = data.get('template_type', 'query_export')
+        filter_data = data.get('filter_data', {})
+        sort_weight = int(data.get('sort_weight', 0) or 0)
+
+        if not name:
+            return JsonResponse({'success': False, 'message': '模板名称不能为空'}, status=400)
+
+        username = request.user.username if request.user.is_authenticated else ''
+
+        existing = QueryTemplate.objects.filter(
+            name=name,
+            template_type=template_type,
+            user=username
+        ).first()
+        if existing:
+            return JsonResponse({'success': False, 'message': '模板名称已存在'}, status=400)
+
+        tpl = QueryTemplate.objects.create(
+            name=name,
+            template_type=template_type,
+            filter_data=json.dumps(filter_data, ensure_ascii=False),
+            user=username,
+            sort_weight=sort_weight,
+        )
+
+        return JsonResponse({
+            'success': True,
+            'id': tpl.id,
+            'message': f'模板 {name} 创建成功',
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)
+
+
+@require_POST
+@login_required
+def api_query_template_update(request, pk):
+    try:
+        tpl = get_object_or_404(QueryTemplate, pk=pk)
+        data = json.loads(request.body)
+
+        new_name = data.get('name', tpl.name).strip()
+        if new_name != tpl.name:
+            username = request.user.username if request.user.is_authenticated else ''
+            if QueryTemplate.objects.filter(
+                name=new_name,
+                template_type=tpl.template_type,
+                user=username
+            ).exclude(pk=pk).exists():
+                return JsonResponse({'success': False, 'message': '模板名称已存在'}, status=400)
+            tpl.name = new_name
+
+        if 'filter_data' in data:
+            tpl.filter_data = json.dumps(data['filter_data'], ensure_ascii=False)
+        if 'sort_weight' in data:
+            tpl.sort_weight = int(data['sort_weight'] or 0)
+        if 'is_default' in data:
+            tpl.is_default = data['is_default']
+
+        tpl.save()
+        return JsonResponse({
+            'success': True,
+            'message': f'模板 {tpl.name} 更新成功',
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)
+
+
+@require_POST
+@login_required
+def api_query_template_delete(request, pk):
+    try:
+        tpl = get_object_or_404(QueryTemplate, pk=pk)
+        name = tpl.name
+        tpl.delete()
+        return JsonResponse({
+            'success': True,
+            'message': f'模板 {name} 删除成功',
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)
+
+
+@login_required
+def api_query_template_detail(request, pk):
+    try:
+        tpl = get_object_or_404(QueryTemplate, pk=pk)
+        return JsonResponse({
+            'id': tpl.id,
+            'name': tpl.name,
+            'template_type': tpl.template_type,
+            'filter_data': json.loads(tpl.filter_data) if tpl.filter_data else {},
+            'is_default': tpl.is_default,
+            'sort_weight': tpl.sort_weight,
+            'created_at': tpl.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+            'updated_at': tpl.updated_at.strftime('%Y-%m-%d %H:%M:%S'),
+        })
     except Exception as e:
         return JsonResponse({'success': False, 'message': str(e)}, status=400)

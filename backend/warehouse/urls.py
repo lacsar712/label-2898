@@ -9,7 +9,7 @@ urlpatterns = [
     path('unit-management/', views.unit_management_page, name='unit-management'),
     path('category-management/', views.category_management_page, name='category-management'),
     path('variety-management/', views.variety_management_page, name='variety-management'),
-    path('query-export/', views.menu_page, {'page_name': 'query-export'}, name='query-export'),
+    path('query-export/', views.query_export_page, name='query-export'),
     path('daily-report/', views.menu_page, {'page_name': 'daily-report'}, name='daily-report'),
     path('warning/', views.menu_page, {'page_name': 'warning'}, name='warning'),
     path('approval/', views.menu_page, {'page_name': 'approval'}, name='approval'),
@@ -43,4 +43,14 @@ urlpatterns = [
     path('api/varieties/<int:pk>/delete/', views.api_variety_delete, name='api-variety-delete'),
 
     path('api/storage-areas/', views.api_storage_areas, name='api-storage-areas'),
+
+    path('api/query-records/', views.api_query_records, name='api-query-records'),
+    path('api/query-export/', views.api_export_csv, name='api-query-export'),
+    path('api/query-filter-options/', views.api_query_filter_options, name='api-query-filter-options'),
+
+    path('api/query-templates/', views.api_query_templates, name='api-query-templates'),
+    path('api/query-templates/create/', views.api_query_template_create, name='api-query-template-create'),
+    path('api/query-templates/<int:pk>/', views.api_query_template_detail, name='api-query-template-detail'),
+    path('api/query-templates/<int:pk>/update/', views.api_query_template_update, name='api-query-template-update'),
+    path('api/query-templates/<int:pk>/delete/', views.api_query_template_delete, name='api-query-template-delete'),
 ]
