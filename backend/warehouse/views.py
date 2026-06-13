@@ -8,7 +8,7 @@ from django.utils import timezone
 from django.db.models import Q
 import json
 
-from .models import CategoryArchive, VarietyArchive, UnitArchive, GoodsEntry
+from .models import CategoryArchive, VarietyArchive, UnitArchive, GoodsEntry, Unit
 
 
 def user_login(request):
@@ -59,6 +59,11 @@ def menu_page(request, page_name):
 @login_required
 def goods_entry_page(request):
     return render(request, 'pages/goods_entry.html', {'title': '货物入库', 'page_name': 'goods-entry'})
+
+
+@login_required
+def unit_management_page(request):
+    return render(request, 'pages/unit_management.html', {'title': '单位管理', 'page_name': 'unit-management'})
 
 
 @login_required
@@ -201,3 +206,121 @@ def api_inventory_hint(request):
         'total': str(agg['total'] or 0),
         'unit': unit,
     })
+
+
+@login_required
+def api_units(request):
+    queryset = Unit.objects.all()
+
+    name = request.GET.get('name', '').strip()
+    is_active = request.GET.get('is_active', '').strip()
+
+    if name:
+        queryset = queryset.filter(name__icontains=name)
+    if is_active in ['true', 'false']:
+        queryset = queryset.filter(is_active=(is_active == 'true'))
+
+    page_num = int(request.GET.get('page', 1))
+    page_size = int(request.GET.get('page_size', 10))
+    paginator = Paginator(queryset, page_size)
+    page = paginator.get_page(page_num)
+
+    items = []
+    for obj in page.object_list:
+        items.append({
+            'id': obj.id,
+            'code': obj.code,
+            'name': obj.name,
+            'english_abbr': obj.english_abbr,
+            'is_active': obj.is_active,
+            'sort_weight': obj.sort_weight,
+            'is_referenced': obj.is_referenced(),
+            'created_at': obj.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+        })
+
+    return JsonResponse({
+        'items': items,
+        'total': paginator.count,
+        'page': page_num,
+        'page_size': page_size,
+        'total_pages': paginator.num_pages,
+    })
+
+
+@require_POST
+@login_required
+def api_unit_create(request):
+    try:
+        data = json.loads(request.body)
+        code = data.get('code', '').strip()
+        name = data.get('name', '').strip()
+        english_abbr = data.get('english_abbr', '').strip()
+        is_active = data.get('is_active', True)
+        sort_weight = data.get('sort_weight', 0)
+
+        if not code:
+            return JsonResponse({'success': False, 'message': '单位编码不能为空'}, status=400)
+        if not name:
+            return JsonResponse({'success': False, 'message': '单位名称不能为空'}, status=400)
+        if Unit.objects.filter(code=code).exists():
+            return JsonResponse({'success': False, 'message': '单位编码已存在'}, status=400)
+
+        obj = Unit.objects.create(
+            code=code,
+            name=name,
+            english_abbr=english_abbr,
+            is_active=is_active,
+            sort_weight=sort_weight,
+        )
+        return JsonResponse({
+            'success': True,
+            'id': obj.id,
+            'message': f'单位 {obj.name} 创建成功',
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)
+
+
+@require_POST
+@login_required
+def api_unit_update(request, pk):
+    try:
+        obj = get_object_or_404(Unit, pk=pk)
+        data = json.loads(request.body)
+
+        if data.get('code') and data['code'] != obj.code:
+            return JsonResponse({'success': False, 'message': '单位编码创建后不可变更'}, status=400)
+
+        obj.name = data.get('name', obj.name).strip()
+        obj.english_abbr = data.get('english_abbr', obj.english_abbr).strip()
+        obj.is_active = data.get('is_active', obj.is_active)
+        obj.sort_weight = data.get('sort_weight', obj.sort_weight)
+
+        if not obj.name:
+            return JsonResponse({'success': False, 'message': '单位名称不能为空'}, status=400)
+
+        obj.save()
+        return JsonResponse({
+            'success': True,
+            'message': f'单位 {obj.name} 更新成功',
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)
+
+
+@require_POST
+@login_required
+def api_unit_delete(request, pk):
+    try:
+        obj = get_object_or_404(Unit, pk=pk)
+
+        if obj.is_referenced():
+            return JsonResponse({'success': False, 'message': '该单位已被引用，无法删除'}, status=400)
+
+        obj.delete()
+        return JsonResponse({
+            'success': True,
+            'message': f'单位 {obj.name} 删除成功',
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)

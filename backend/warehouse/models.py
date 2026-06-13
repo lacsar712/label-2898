@@ -1,5 +1,32 @@
 from django.db import models
 from datetime import datetime
+from django.core.exceptions import ValidationError
+
+
+class Unit(models.Model):
+    code = models.CharField(max_length=20, unique=True, verbose_name='单位编码')
+    name = models.CharField(max_length=50, verbose_name='单位名称')
+    english_abbr = models.CharField(max_length=20, blank=True, default='', verbose_name='英文缩写')
+    is_active = models.BooleanField(default=True, verbose_name='是否启用')
+    sort_weight = models.IntegerField(default=0, verbose_name='排序权重')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+
+    class Meta:
+        verbose_name = '计量单位'
+        verbose_name_plural = '计量单位'
+        ordering = ['sort_weight', 'id']
+
+    def __str__(self):
+        return self.name
+
+    def clean(self):
+        if self.pk:
+            original = Unit.objects.filter(pk=self.pk).first()
+            if original and original.code != self.code:
+                raise ValidationError({'code': '单位编码创建后不可变更'})
+
+    def is_referenced(self):
+        return self.variety_set.exists() or self.unitarchive_set.exists()
 
 
 class CategoryArchive(models.Model):
@@ -21,6 +48,10 @@ class VarietyArchive(models.Model):
         CategoryArchive, on_delete=models.CASCADE,
         related_name='varieties', verbose_name='所属品类'
     )
+    unit = models.ForeignKey(
+        Unit, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='variety_set', verbose_name='计量单位'
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -38,6 +69,10 @@ class UnitArchive(models.Model):
     category = models.ForeignKey(
         CategoryArchive, on_delete=models.CASCADE,
         related_name='units', verbose_name='所属品类'
+    )
+    unit_ref = models.ForeignKey(
+        Unit, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='unitarchive_set', verbose_name='全局单位引用'
     )
     created_at = models.DateTimeField(auto_now_add=True)
 

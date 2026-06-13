@@ -21,19 +21,31 @@ const UI = {
         }, 3000);
     },
 
-    // 确认弹窗
     confirm: (title, message, callback) => {
+        UI.confirmDanger(title, message, false, callback);
+    },
+
+    confirmDanger: (title, message, isDanger, callback) => {
         const overlay = document.getElementById('modal-overlay');
         const modal = overlay.querySelector('.modal-tech');
         modal.querySelector('h3').innerText = title;
         modal.querySelector('p').innerText = message;
+
+        if (isDanger) {
+            modal.classList.add('danger-mode');
+        } else {
+            modal.classList.remove('danger-mode');
+        }
 
         const confirmBtn = document.getElementById('modal-confirm');
         const cancelBtn = document.getElementById('modal-cancel');
 
         overlay.style.display = 'flex';
 
-        const close = () => { overlay.style.display = 'none'; };
+        const close = () => {
+            overlay.style.display = 'none';
+            modal.classList.remove('danger-mode');
+        };
 
         confirmBtn.onclick = () => { close(); callback(); };
         cancelBtn.onclick = () => { close(); };

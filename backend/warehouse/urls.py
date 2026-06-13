@@ -6,7 +6,7 @@ urlpatterns = [
     path('logout/', views.user_logout, name='logout'),
     path('', views.dashboard, name='dashboard'),
     path('goods-entry/', views.goods_entry_page, name='goods-entry'),
-    path('unit-management/', views.menu_page, {'page_name': 'unit-management'}, name='unit-management'),
+    path('unit-management/', views.unit_management_page, name='unit-management'),
     path('category-management/', views.menu_page, {'page_name': 'category-management'}, name='category-management'),
     path('variety-management/', views.menu_page, {'page_name': 'variety-management'}, name='variety-management'),
     path('query-export/', views.menu_page, {'page_name': 'query-export'}, name='query-export'),
@@ -23,4 +23,8 @@ urlpatterns = [
     path('api/goods-entries/create/', views.api_goods_entry_create, name='api-goods-entry-create'),
     path('api/goods-entries/<int:pk>/void/', views.api_goods_entry_void, name='api-goods-entry-void'),
     path('api/inventory-hint/', views.api_inventory_hint, name='api-inventory-hint'),
+    path('api/units/', views.api_units, name='api-units'),
+    path('api/units/create/', views.api_unit_create, name='api-unit-create'),
+    path('api/units/<int:pk>/update/', views.api_unit_update, name='api-unit-update'),
+    path('api/units/<int:pk>/delete/', views.api_unit_delete, name='api-unit-delete'),
 ]

@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/unit_management.css">
+{% endblock %}
+
+{% block content %}
+<div class="um-page">
+    <div class="um-section">
+        <div class="um-section-header">
+            <div class="um-header-left">
+                <i class="bi bi-rulers"></i>
+                <span>单位档案列表</span>
+            </div>
+            <div class="um-header-right">
+                <button id="um-add-btn" class="btn-tech">
+                    <i class="bi bi-plus-lg"></i> 新增单位
+                </button>
+            </div>
+        </div>
+
+        <div class="um-filters">
+            <div class="um-filter-group">
+                <label>单位名称</label>
+                <input type="text" id="um-filter-name" class="input-tech" placeholder="输入名称模糊搜索">
+            </div>
+            <div class="um-filter-group">
+                <label>启用状态</label>
+                <select id="um-filter-active" class="input-tech">
+                    <option value="">全部</option>
+                    <option value="true">已启用</option>
+                    <option value="false">已禁用</option>
+                </select>
+            </div>
+            <button id="um-filter-btn" class="btn-tech">筛选</button>
+            <button id="um-reset-btn" class="btn-tech btn-cancel">重置</button>
+        </div>
+
+        <div class="um-table-wrapper">
+            <table class="um-table">
+                <thead>
+                    <tr>
+                        <th>单位编码</th>
+                        <th>单位名称</th>
+                        <th>英文缩写</th>
+                        <th>启用状态</th>
+                        <th>排序权重</th>
+                        <th>创建时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="um-table-body">
+                </tbody>
+            </table>
+        </div>
+
+        <div class="um-pagination">
+            <span id="um-page-info" class="um-page-info"></span>
+            <div class="um-page-btns">
+                <button id="um-page-prev" class="btn-tech btn-cancel" disabled>&laquo; 上一页</button>
+                <button id="um-page-next" class="btn-tech btn-cancel" disabled>下一页 &raquo;</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="um-form-modal" class="modal-overlay">
+    <div class="modal-tech um-modal">
+        <h3 id="um-modal-title">新增单位</h3>
+        <form id="um-form" class="um-form">
+            {% csrf_token %}
+            <div class="um-form-group">
+                <label>单位编码 <span class="um-required">*</span></label>
+                <input type="text" name="code" id="um-input-code" class="input-tech" placeholder="输入单位编码（全局唯一，创建后不可变更）" maxlength="20" required>
+            </div>
+            <div class="um-form-group">
+                <label>单位名称 <span class="um-required">*</span></label>
+                <input type="text" name="name" id="um-input-name" class="input-tech" placeholder="输入单位名称" maxlength="50" required>
+            </div>
+            <div class="um-form-group">
+                <label>英文缩写</label>
+                <input type="text" name="english_abbr" id="um-input-abbr" class="input-tech" placeholder="输入英文缩写（选填）" maxlength="20">
+            </div>
+            <div class="um-form-row">
+                <div class="um-form-group um-form-group-half">
+                    <label>排序权重</label>
+                    <input type="number" name="sort_weight" id="um-input-weight" class="input-tech" value="0" placeholder="数字越小越靠前">
+                </div>
+                <div class="um-form-group um-form-group-half">
+                    <label>是否启用</label>
+                    <div class="um-switch-wrapper">
+                        <label class="um-switch">
+                            <input type="checkbox" name="is_active" id="um-input-active" checked>
+                            <span class="um-slider"></span>
+                        </label>
+                        <span id="um-active-label" class="um-active-label">已启用</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-btns">
+                <button type="button" id="um-form-cancel" class="btn-tech btn-cancel">取消</button>
+                <button type="submit" class="btn-tech">确定</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/js/unit_management.js"></script>
+{% endblock %}
