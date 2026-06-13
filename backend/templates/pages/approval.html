@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/approval.css">
+{% endblock %}
+
+{% block content %}
+<div class="cm-page">
+    <div class="cm-header">
+        <h1 class="cm-title">
+            <i class="bi bi-shield-check"></i> 审批区域
+        </h1>
+    </div>
+
+    <div class="cm-stats">
+        <div class="stat-card pending">
+            <div class="stat-number" id="stat-pending">0</div>
+            <div class="stat-label">待审批</div>
+        </div>
+        <div class="stat-card approved">
+            <div class="stat-number" id="stat-approved">0</div>
+            <div class="stat-label">已通过</div>
+        </div>
+        <div class="stat-card rejected">
+            <div class="stat-number" id="stat-rejected">0</div>
+            <div class="stat-label">已驳回</div>
+        </div>
+    </div>
+
+    <div class="cm-tabs">
+        <button class="tab-item active" data-tab="pending">
+            待审批 <span class="tab-count" id="tab-pending-count">0</span>
+        </button>
+        <button class="tab-item" data-tab="approved">
+            已通过 <span class="tab-count" id="tab-approved-count">0</span>
+        </button>
+        <button class="tab-item" data-tab="rejected">
+            已驳回 <span class="tab-count" id="tab-rejected-count">0</span>
+        </button>
+    </div>
+
+    <div class="cm-toolbar">
+        <div class="cm-search">
+            <i class="bi bi-search"></i>
+            <input type="text" class="input-tech" id="search-input" placeholder="搜索单号、物资名称、经办人、供应商...">
+        </div>
+        <div class="cm-batch-actions" id="batch-actions" style="display: none;">
+            <button class="btn-tech success" id="btn-batch-approve">
+                <i class="bi bi-check-circle"></i> 批量通过
+            </button>
+        </div>
+    </div>
+
+    <div class="cm-table-wrapper">
+        <table class="cm-table">
+            <thead>
+                <tr>
+                    <th>
+                        <input type="checkbox" class="cm-check" id="check-all" style="display: none;">
+                    </th>
+                    <th>入库单号</th>
+                    <th>物资名称</th>
+                    <th>数量</th>
+                    <th>经办人</th>
+                    <th>供应商</th>
+                    <th>提交人</th>
+                    <th>提交时间</th>
+                    <th>状态</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="approval-table-body">
+            </tbody>
+        </table>
+        <div class="cm-empty" id="empty-state" style="display: none;">
+            <i class="bi bi-inbox"></i>
+            <p>暂无数据</p>
+        </div>
+    </div>
+
+    <div class="cm-pagination">
+        <div class="pagination-info" id="pagination-info">
+            共 0 条记录
+        </div>
+        <div class="pagination-controls">
+            <button class="page-btn" id="btn-prev" disabled>
+                <i class="bi bi-chevron-left"></i>
+            </button>
+            <span id="page-numbers"></span>
+            <button class="page-btn" id="btn-next" disabled>
+                <i class="bi bi-chevron-right"></i>
+            </button>
+            <select class="page-size-select" id="page-size">
+                <option value="10">10条/页</option>
+                <option value="20">20条/页</option>
+                <option value="50">50条/页</option>
+            </select>
+        </div>
+    </div>
+</div>
+
+<div id="detail-modal" class="modal-overlay">
+    <div class="modal-tech detail-modal">
+        <div class="detail-header">
+            <h2 class="detail-title">入库单详情</h2>
+            <button class="detail-close" id="btn-close-detail">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+
+        <div class="detail-section">
+            <h3 class="detail-section-title">基本信息</h3>
+            <div class="detail-grid" id="detail-basic">
+            </div>
+        </div>
+
+        <div class="detail-section">
+            <h3 class="detail-section-title">审批流转</h3>
+            <div class="timeline" id="detail-timeline">
+            </div>
+        </div>
+
+        <div class="approval-form" id="approval-form" style="display: none;">
+            <h3 class="detail-section-title">审批操作</h3>
+            <textarea class="input-tech" id="approval-opinion" placeholder="请输入审批意见（可选）"></textarea>
+            <div class="approval-buttons">
+                <button class="btn-tech danger" id="btn-reject">
+                    <i class="bi bi-x-circle"></i> 驳回
+                </button>
+                <button class="btn-tech success" id="btn-approve">
+                    <i class="bi bi-check-circle"></i> 通过
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="reject-modal" class="modal-overlay">
+    <div class="modal-tech reject-modal">
+        <h3>驳回单据</h3>
+        <p style="margin-bottom: 20px; color: rgba(255,255,255,0.7);">请填写驳回原因：</p>
+        <textarea class="input-tech" id="reject-reason" placeholder="请输入驳回原因（必填）"></textarea>
+        <div class="modal-btns">
+            <button id="btn-cancel-reject" class="btn-tech btn-cancel">取消</button>
+            <button id="btn-confirm-reject" class="btn-tech danger">确认驳回</button>
+        </div>
+    </div>
+</div>
+
+<div id="batch-opinion-modal" class="modal-overlay">
+    <div class="modal-tech batch-opinion-modal">
+        <h3>批量审批</h3>
+        <div class="selected-count" id="selected-count-info">已选择 0 条单据</div>
+        <p style="margin-bottom: 15px; color: rgba(255,255,255,0.7);">请输入审批意见（可选）：</p>
+        <textarea class="input-tech" id="batch-opinion" placeholder="请输入审批意见"></textarea>
+        <div class="modal-btns">
+            <button id="btn-cancel-batch" class="btn-tech btn-cancel">取消</button>
+            <button id="btn-confirm-batch" class="btn-tech success">确认通过</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/js/approval.js"></script>
+{% endblock %}

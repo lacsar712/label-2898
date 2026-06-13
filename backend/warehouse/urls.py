@@ -12,7 +12,7 @@ urlpatterns = [
     path('query-export/', views.query_export_page, name='query-export'),
     path('daily-report/', views.daily_report_page, name='daily-report'),
     path('warning/', views.warning_page, name='warning'),
-    path('approval/', views.menu_page, {'page_name': 'approval'}, name='approval'),
+    path('approval/', views.approval_page, name='approval'),
     path('attendance-staff/', views.menu_page, {'page_name': 'attendance-staff'}, name='attendance-staff'),
     path('outbound-staff/', views.menu_page, {'page_name': 'outbound-staff'}, name='outbound-staff'),
 
@@ -66,4 +66,12 @@ urlpatterns = [
     path('api/warning/restock-suggestion/', views.api_warning_restock_suggestion, name='api-warning-restock-suggestion'),
     path('api/warning/snapshot/list/', views.api_warning_snapshot_list, name='api-warning-snapshot-list'),
     path('api/warning/snapshot/summary/', views.api_warning_snapshot_summary, name='api-warning-snapshot-summary'),
+
+    path('api/approval/list/', views.api_approval_list, name='api-approval-list'),
+    path('api/approval/<int:pk>/', views.api_approval_detail, name='api-approval-detail'),
+    path('api/approval/<int:pk>/submit/', views.api_approval_submit, name='api-approval-submit'),
+    path('api/approval/<int:pk>/approve/', views.api_approval_approve, name='api-approval-approve'),
+    path('api/approval/<int:pk>/reject/', views.api_approval_reject, name='api-approval-reject'),
+    path('api/approval/batch-approve/', views.api_approval_batch_approve, name='api-approval-batch-approve'),
+    path('api/approval/pending-stats/', views.api_approval_pending_stats, name='api-approval-pending-stats'),
 ]

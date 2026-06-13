@@ -1,6 +1,9 @@
 from django.db import models
 from datetime import datetime
 from django.core.exceptions import ValidationError
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 
 
 class Unit(models.Model):
@@ -290,6 +293,13 @@ class GoodsEntry(models.Model):
         ('voided', '已作废'),
     ]
 
+    APPROVAL_STATUS_CHOICES = [
+        ('draft', '草稿'),
+        ('pending', '待审批'),
+        ('approved', '已通过'),
+        ('rejected', '已驳回'),
+    ]
+
     entry_no = models.CharField(max_length=20, unique=True, verbose_name='入库单号')
     material_name = models.CharField(max_length=100, verbose_name='物资名称')
     category = models.CharField(max_length=50, verbose_name='品类')
@@ -307,6 +317,22 @@ class GoodsEntry(models.Model):
     voided_by = models.CharField(max_length=50, blank=True, default='', verbose_name='作废人')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
+
+    approval_status = models.CharField(
+        max_length=20, choices=APPROVAL_STATUS_CHOICES,
+        default='draft', verbose_name='审批状态'
+    )
+    submitted_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='submitted_entries', verbose_name='提交人'
+    )
+    submitted_at = models.DateTimeField(null=True, blank=True, verbose_name='提交时间')
+    approved_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='approved_entries', verbose_name='审批人'
+    )
+    approved_at = models.DateTimeField(null=True, blank=True, verbose_name='审批时间')
+    approval_opinion = models.TextField(blank=True, default='', verbose_name='审批意见')
 
     class Meta:
         verbose_name = '货物入库'
@@ -331,6 +357,44 @@ class GoodsEntry(models.Model):
         else:
             seq = 1
         return f'{prefix}{seq:04d}'
+
+    def get_approval_status_display(self):
+        return dict(self.APPROVAL_STATUS_CHOICES).get(self.approval_status, self.approval_status)
+
+    def is_overdue(self, timeout_hours=24):
+        if self.approval_status != 'pending' or not self.submitted_at:
+            return False
+        from django.utils import timezone
+        now = timezone.now()
+        elapsed = now - self.submitted_at
+        return elapsed.total_seconds() > timeout_hours * 3600
+
+    def get_approval_timeline(self):
+        timeline = []
+        timeline.append({
+            'action': '创建',
+            'operator': self.submitted_by.username if self.submitted_by else '系统',
+            'timestamp': self.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+            'opinion': '创建入库单',
+            'type': 'create',
+        })
+        if self.submitted_at and self.submitted_by:
+            timeline.append({
+                'action': '提交审批',
+                'operator': self.submitted_by.username,
+                'timestamp': self.submitted_at.strftime('%Y-%m-%d %H:%M:%S'),
+                'opinion': '提交审批',
+                'type': 'submit',
+            })
+        for record in self.approval_records.all().order_by('created_at'):
+            timeline.append({
+                'action': record.get_action_display(),
+                'operator': record.operator.username if record.operator else '系统',
+                'timestamp': record.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                'opinion': record.opinion,
+                'type': record.action,
+            })
+        return timeline
 
 
 class GoodsOutbound(models.Model):
@@ -461,3 +525,33 @@ class StockWarningSnapshot(models.Model):
 
     def __str__(self):
         return f'{self.snapshot_date.strftime("%Y-%m-%d")} - {self.variety_name}'
+
+
+class ApprovalRecord(models.Model):
+    ACTION_CHOICES = [
+        ('approve', '通过'),
+        ('reject', '驳回'),
+    ]
+
+    goods_entry = models.ForeignKey(
+        GoodsEntry, on_delete=models.CASCADE,
+        related_name='approval_records', verbose_name='入库单'
+    )
+    operator = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        verbose_name='操作人'
+    )
+    action = models.CharField(max_length=20, choices=ACTION_CHOICES, verbose_name='操作类型')
+    opinion = models.TextField(verbose_name='审批意见')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='操作时间')
+
+    class Meta:
+        verbose_name = '审批记录'
+        verbose_name_plural = '审批记录'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.goods_entry.entry_no} - {self.get_action_display()}'
+
+    def get_action_display(self):
+        return dict(self.ACTION_CHOICES).get(self.action, self.action)

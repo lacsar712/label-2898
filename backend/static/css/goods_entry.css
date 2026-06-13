@@ -194,6 +194,45 @@
     border: 1px solid rgba(255, 65, 54, 0.3);
 }
 
+.ge-status-draft {
+    background: rgba(108, 117, 125, 0.15);
+    color: #6c757d;
+    border: 1px solid rgba(108, 117, 125, 0.3);
+}
+
+.ge-status-pending {
+    background: rgba(255, 165, 2, 0.15);
+    color: #ffa502;
+    border: 1px solid rgba(255, 165, 2, 0.3);
+}
+
+.ge-status-approved {
+    background: rgba(0, 255, 136, 0.15);
+    color: #00ff88;
+    border: 1px solid rgba(0, 255, 136, 0.3);
+}
+
+.ge-status-rejected {
+    background: rgba(255, 107, 107, 0.15);
+    color: #ff6b6b;
+    border: 1px solid rgba(255, 107, 107, 0.3);
+}
+
+.ge-submit-btn {
+    background: transparent;
+    border: 1px solid rgba(0, 210, 255, 0.5);
+    color: var(--primary-blue);
+    padding: 4px 12px;
+    cursor: pointer;
+    font-size: 0.78rem;
+    transition: all 0.3s;
+}
+
+.ge-submit-btn:hover {
+    background: rgba(0, 210, 255, 0.2);
+    box-shadow: 0 0 8px rgba(0, 210, 255, 0.3);
+}
+
 .ge-void-btn {
     background: transparent;
     border: 1px solid rgba(255, 65, 54, 0.5);

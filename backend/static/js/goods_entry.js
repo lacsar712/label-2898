@@ -153,7 +153,13 @@
             .then(result => {
                 UI.hideLoader();
                 if (result.success) {
-                    UI.toast(result.message);
+                    UI.toast(result.message + '，是否提交审批？');
+                    const entryId = result.id;
+                    setTimeout(() => {
+                        UI.confirm('提交审批', `入库单 ${result.entry_no} 创建成功，是否立即提交审批？`, () => {
+                            submitForApproval(entryId);
+                        });
+                    }, 500);
                     form.reset();
                     entryDateInput.value = todayStr();
                     varietySelect.innerHTML = '<option value="">-- 先选择品类 --</option>';
@@ -205,7 +211,7 @@
         if (items.length === 0) {
             const tr = document.createElement('tr');
             tr.className = 'ge-empty-row';
-            tr.innerHTML = '<td colspan="11">暂无入库记录</td>';
+            tr.innerHTML = '<td colspan="13">暂无入库记录</td>';
             tableBody.appendChild(tr);
             return;
         }
@@ -216,6 +222,12 @@
 
             const statusClass = item.status === 'effective' ? 'ge-status-effective' : 'ge-status-voided';
             const canVoid = item.status === 'effective';
+
+            const approvalStatus = item.approval_status || 'draft';
+            const approvalStatusDisplay = item.approval_status_display || '草稿';
+            const approvalStatusClass = `ge-status-${approvalStatus}`;
+
+            const canSubmit = approvalStatus === 'draft' || approvalStatus === 'rejected';
 
             mainRow.innerHTML = `
                 <td><button class="ge-expand-btn" data-id="${item.id}"><i class="bi bi-chevron-right"></i></button></td>
@@ -228,7 +240,9 @@
                 <td>${item.entry_date}</td>
                 <td>${item.handler}</td>
                 <td><span class="ge-status-badge ${statusClass}">${item.status_display}</span></td>
+                <td><span class="ge-status-badge ${approvalStatusClass}">${approvalStatusDisplay}</span></td>
                 <td>${canVoid ? `<button class="ge-void-btn" data-id="${item.id}" data-no="${item.entry_no}">作废</button>` : '-'}</td>
+                <td>${canSubmit ? `<button class="ge-submit-btn" data-id="${item.id}" data-no="${item.entry_no}">提交审批</button>` : '-'}</td>
             `;
             tableBody.appendChild(mainRow);
 
@@ -236,7 +250,7 @@
             detailRow.className = 'ge-detail-row';
             detailRow.dataset.detailId = item.id;
             detailRow.innerHTML = `
-                <td colspan="11">
+                <td colspan="13">
                     <div class="ge-detail-content" data-detail-id="${item.id}">
                         <div class="ge-detail-grid">
                             <div class="ge-detail-item">
@@ -314,7 +328,41 @@
                     });
             });
         }
+
+        const submitBtn = e.target.closest('.ge-submit-btn');
+        if (submitBtn) {
+            const id = submitBtn.dataset.id;
+            const entryNo = submitBtn.dataset.no;
+            UI.confirm('提交审批', `确定要提交入库单 ${entryNo} 进行审批吗？`, () => {
+                submitForApproval(id);
+            });
+        }
     });
+
+    function submitForApproval(id) {
+        UI.showLoader();
+        fetch(`/api/approval/${id}/submit/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            }
+        })
+            .then(r => r.json())
+            .then(result => {
+                UI.hideLoader();
+                if (result.success) {
+                    UI.toast(result.message);
+                    loadEntries();
+                } else {
+                    UI.toast(result.message || '提交失败', 'error');
+                }
+            })
+            .catch(() => {
+                UI.hideLoader();
+                UI.toast('网络连接异常', 'error');
+            });
+    }
 
     filterBtn.addEventListener('click', function () {
         currentPage = 1;

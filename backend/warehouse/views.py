@@ -8,7 +8,7 @@ from django.utils import timezone
 from django.db.models import Q
 import json
 
-from .models import CategoryArchive, VarietyArchive, UnitArchive, GoodsEntry, Unit, MaterialCategory, Variety, GoodsOutbound, QueryTemplate, DailyReport, StockWarningSnapshot
+from .models import CategoryArchive, VarietyArchive, UnitArchive, GoodsEntry, Unit, MaterialCategory, Variety, GoodsOutbound, QueryTemplate, DailyReport, StockWarningSnapshot, ApprovalRecord
 
 
 def user_login(request):
@@ -118,26 +118,30 @@ def api_goods_entries(request):
     page = paginator.get_page(page_num)
 
     items = []
-    for obj in page.object_list:
-        items.append({
-            'id': obj.id,
-            'entry_no': obj.entry_no,
-            'material_name': obj.material_name,
-            'category': obj.category,
-            'variety': obj.variety,
-            'quantity': str(obj.quantity),
-            'unit': obj.unit,
-            'entry_date': obj.entry_date.strftime('%Y-%m-%d'),
-            'handler': obj.handler,
-            'supplier': obj.supplier,
-            'storage_area': obj.storage_area,
-            'remarks': obj.remarks,
-            'status': obj.status,
-            'status_display': obj.get_status_display(),
-            'voided_at': obj.voided_at.strftime('%Y-%m-%d %H:%M:%S') if obj.voided_at else '',
-            'voided_by': obj.voided_by,
-            'created_at': obj.created_at.strftime('%Y-%m-%d %H:%M:%S'),
-        })
+        for obj in page.object_list:
+            items.append({
+                'id': obj.id,
+                'entry_no': obj.entry_no,
+                'material_name': obj.material_name,
+                'category': obj.category,
+                'variety': obj.variety,
+                'quantity': str(obj.quantity),
+                'unit': obj.unit,
+                'entry_date': obj.entry_date.strftime('%Y-%m-%d'),
+                'handler': obj.handler,
+                'supplier': obj.supplier,
+                'storage_area': obj.storage_area,
+                'remarks': obj.remarks,
+                'status': obj.status,
+                'status_display': obj.get_status_display(),
+                'voided_at': obj.voided_at.strftime('%Y-%m-%d %H:%M:%S') if obj.voided_at else '',
+                'voided_by': obj.voided_by,
+                'created_at': obj.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                'approval_status': obj.approval_status,
+                'approval_status_display': obj.get_approval_status_display(),
+                'submitted_by': obj.submitted_by.username if obj.submitted_by else '',
+                'submitted_at': obj.submitted_at.strftime('%Y-%m-%d %H:%M:%S') if obj.submitted_at else '',
+            })
 
     return JsonResponse({
         'items': items,
@@ -170,7 +174,10 @@ def api_goods_entry_create(request):
         )
         return JsonResponse({
             'success': True,
+            'id': obj.id,
             'entry_no': obj.entry_no,
+            'approval_status': obj.approval_status,
+            'approval_status_display': obj.get_approval_status_display(),
             'message': f'入库单 {obj.entry_no} 创建成功',
         })
     except Exception as e:
@@ -1919,5 +1926,344 @@ def api_warning_snapshot_summary(request):
         stats['available_dates'] = [d.strftime('%Y-%m-%d') for d in available_dates]
 
         return JsonResponse(stats)
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)
+
+
+@login_required
+def approval_page(request):
+    return render(request, 'pages/approval.html', {'title': '审批区域', 'page_name': 'approval'})
+
+
+@login_required
+def api_approval_list(request):
+    try:
+        approval_status = request.GET.get('approval_status', 'pending')
+        keyword = request.GET.get('keyword', '').strip()
+        page_num = int(request.GET.get('page', 1))
+        page_size = int(request.GET.get('page_size', 10))
+
+        queryset = GoodsEntry.objects.filter(
+            is_deleted=False,
+            approval_status__in=['pending', 'approved', 'rejected']
+        )
+
+        if approval_status in ['pending', 'approved', 'rejected']:
+            queryset = queryset.filter(approval_status=approval_status)
+
+        if not request.user.is_staff:
+            queryset = queryset.filter(submitted_by=request.user)
+
+        if keyword:
+            queryset = queryset.filter(
+                Q(entry_no__icontains=keyword) |
+                Q(material_name__icontains=keyword) |
+                Q(handler__icontains=keyword) |
+                Q(supplier__icontains=keyword)
+            )
+
+        queryset = queryset.select_related('submitted_by', 'approved_by').order_by('-submitted_at')
+
+        paginator = Paginator(queryset, page_size)
+        page = paginator.get_page(page_num)
+
+        items = []
+        for obj in page.object_list:
+            items.append({
+                'id': obj.id,
+                'entry_no': obj.entry_no,
+                'material_name': obj.material_name,
+                'category': obj.category,
+                'variety': obj.variety,
+                'quantity': str(obj.quantity),
+                'unit': obj.unit,
+                'entry_date': obj.entry_date.strftime('%Y-%m-%d'),
+                'handler': obj.handler,
+                'supplier': obj.supplier,
+                'storage_area': obj.storage_area,
+                'remarks': obj.remarks,
+                'approval_status': obj.approval_status,
+                'approval_status_display': obj.get_approval_status_display(),
+                'submitted_by': obj.submitted_by.username if obj.submitted_by else '',
+                'submitted_at': obj.submitted_at.strftime('%Y-%m-%d %H:%M:%S') if obj.submitted_at else '',
+                'approved_by': obj.approved_by.username if obj.approved_by else '',
+                'approved_at': obj.approved_at.strftime('%Y-%m-%d %H:%M:%S') if obj.approved_at else '',
+                'is_overdue': obj.is_overdue(),
+                'can_approve': request.user.is_staff and obj.approval_status == 'pending',
+            })
+
+        pending_count = GoodsEntry.objects.filter(
+            is_deleted=False, approval_status='pending'
+        ).count()
+        if not request.user.is_staff:
+            pending_count = GoodsEntry.objects.filter(
+                is_deleted=False, approval_status='pending', submitted_by=request.user
+            ).count()
+
+        approved_count = GoodsEntry.objects.filter(
+            is_deleted=False, approval_status='approved'
+        ).count()
+        if not request.user.is_staff:
+            approved_count = GoodsEntry.objects.filter(
+                is_deleted=False, approval_status='approved', submitted_by=request.user
+            ).count()
+
+        rejected_count = GoodsEntry.objects.filter(
+            is_deleted=False, approval_status='rejected'
+        ).count()
+        if not request.user.is_staff:
+            rejected_count = GoodsEntry.objects.filter(
+                is_deleted=False, approval_status='rejected', submitted_by=request.user
+            ).count()
+
+        return JsonResponse({
+            'items': items,
+            'total': paginator.count,
+            'page': page_num,
+            'page_size': page_size,
+            'total_pages': paginator.num_pages,
+            'is_staff': request.user.is_staff,
+            'stats': {
+                'pending': pending_count,
+                'approved': approved_count,
+                'rejected': rejected_count,
+            }
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)
+
+
+@login_required
+def api_approval_detail(request, pk):
+    try:
+        obj = get_object_or_404(GoodsEntry, pk=pk, is_deleted=False)
+
+        if not request.user.is_staff and obj.submitted_by != request.user:
+            return JsonResponse({'success': False, 'message': '无权查看该单据'}, status=403)
+
+        timeline = obj.get_approval_timeline()
+
+        return JsonResponse({
+            'id': obj.id,
+            'entry_no': obj.entry_no,
+            'material_name': obj.material_name,
+            'category': obj.category,
+            'variety': obj.variety,
+            'quantity': str(obj.quantity),
+            'unit': obj.unit,
+            'entry_date': obj.entry_date.strftime('%Y-%m-%d'),
+            'handler': obj.handler,
+            'supplier': obj.supplier,
+            'storage_area': obj.storage_area,
+            'remarks': obj.remarks,
+            'approval_status': obj.approval_status,
+            'approval_status_display': obj.get_approval_status_display(),
+            'submitted_by': obj.submitted_by.username if obj.submitted_by else '',
+            'submitted_at': obj.submitted_at.strftime('%Y-%m-%d %H:%M:%S') if obj.submitted_at else '',
+            'approved_by': obj.approved_by.username if obj.approved_by else '',
+            'approved_at': obj.approved_at.strftime('%Y-%m-%d %H:%M:%S') if obj.approved_at else '',
+            'approval_opinion': obj.approval_opinion,
+            'is_overdue': obj.is_overdue(),
+            'can_approve': request.user.is_staff and obj.approval_status == 'pending',
+            'timeline': timeline,
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)
+
+
+@require_POST
+@login_required
+def api_approval_submit(request, pk):
+    try:
+        obj = get_object_or_404(GoodsEntry, pk=pk, is_deleted=False)
+
+        if obj.submitted_by and obj.submitted_by != request.user:
+            return JsonResponse({'success': False, 'message': '只能提交自己创建的单据'}, status=400)
+
+        if obj.approval_status not in ['draft', 'rejected']:
+            return JsonResponse({'success': False, 'message': '该单据状态不允许提交'}, status=400)
+
+        obj.approval_status = 'pending'
+        obj.submitted_by = request.user
+        obj.submitted_at = timezone.now()
+        obj.approval_opinion = ''
+        obj.save(update_fields=[
+            'approval_status', 'submitted_by', 'submitted_at',
+            'approval_opinion', 'updated_at'
+        ])
+
+        return JsonResponse({
+            'success': True,
+            'message': f'入库单 {obj.entry_no} 已提交审批',
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)
+
+
+@require_POST
+@login_required
+def api_approval_approve(request, pk):
+    try:
+        if not request.user.is_staff:
+            return JsonResponse({'success': False, 'message': '无审批权限'}, status=403)
+
+        obj = get_object_or_404(GoodsEntry, pk=pk, is_deleted=False)
+
+        if obj.approval_status != 'pending':
+            return JsonResponse({'success': False, 'message': '该单据状态不允许审批'}, status=400)
+
+        data = json.loads(request.body)
+        opinion = data.get('opinion', '').strip()
+
+        obj.approval_status = 'approved'
+        obj.approved_by = request.user
+        obj.approved_at = timezone.now()
+        obj.approval_opinion = opinion
+        obj.save(update_fields=[
+            'approval_status', 'approved_by', 'approved_at',
+            'approval_opinion', 'updated_at'
+        ])
+
+        ApprovalRecord.objects.create(
+            goods_entry=obj,
+            operator=request.user,
+            action='approve',
+            opinion=opinion or '审批通过',
+        )
+
+        return JsonResponse({
+            'success': True,
+            'message': f'入库单 {obj.entry_no} 已通过',
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)
+
+
+@require_POST
+@login_required
+def api_approval_reject(request, pk):
+    try:
+        if not request.user.is_staff:
+            return JsonResponse({'success': False, 'message': '无审批权限'}, status=403)
+
+        obj = get_object_or_404(GoodsEntry, pk=pk, is_deleted=False)
+
+        if obj.approval_status != 'pending':
+            return JsonResponse({'success': False, 'message': '该单据状态不允许审批'}, status=400)
+
+        data = json.loads(request.body)
+        opinion = data.get('opinion', '').strip()
+
+        if not opinion:
+            return JsonResponse({'success': False, 'message': '驳回原因不能为空'}, status=400)
+
+        obj.approval_status = 'rejected'
+        obj.approved_by = request.user
+        obj.approved_at = timezone.now()
+        obj.approval_opinion = opinion
+        obj.save(update_fields=[
+            'approval_status', 'approved_by', 'approved_at',
+            'approval_opinion', 'updated_at'
+        ])
+
+        ApprovalRecord.objects.create(
+            goods_entry=obj,
+            operator=request.user,
+            action='reject',
+            opinion=opinion,
+        )
+
+        return JsonResponse({
+            'success': True,
+            'message': f'入库单 {obj.entry_no} 已驳回',
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)
+
+
+@require_POST
+@login_required
+def api_approval_batch_approve(request):
+    try:
+        if not request.user.is_staff:
+            return JsonResponse({'success': False, 'message': '无审批权限'}, status=403)
+
+        data = json.loads(request.body)
+        ids = data.get('ids', [])
+        opinion = data.get('opinion', '').strip()
+
+        if not ids:
+            return JsonResponse({'success': False, 'message': '请选择要审批的单据'}, status=400)
+
+        success_count = 0
+        fail_count = 0
+        fail_messages = []
+
+        for pk in ids:
+            try:
+                obj = GoodsEntry.objects.filter(pk=pk, is_deleted=False).first()
+                if not obj or obj.approval_status != 'pending':
+                    fail_count += 1
+                    fail_messages.append(f'单据 {obj.entry_no if obj else pk} 状态不允许审批')
+                    continue
+
+                obj.approval_status = 'approved'
+                obj.approved_by = request.user
+                obj.approved_at = timezone.now()
+                obj.approval_opinion = opinion
+                obj.save(update_fields=[
+                    'approval_status', 'approved_by', 'approved_at',
+                    'approval_opinion', 'updated_at'
+                ])
+
+                ApprovalRecord.objects.create(
+                    goods_entry=obj,
+                    operator=request.user,
+                    action='approve',
+                    opinion=opinion or '批量审批通过',
+                )
+
+                success_count += 1
+            except Exception as e:
+                fail_count += 1
+                fail_messages.append(f'单据 {pk} 审批失败: {str(e)}')
+
+        message = f'批量审批完成：成功 {success_count} 条'
+        if fail_count > 0:
+            message += f'，失败 {fail_count} 条'
+
+        return JsonResponse({
+            'success': True,
+            'message': message,
+            'success_count': success_count,
+            'fail_count': fail_count,
+            'fail_messages': fail_messages,
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)
+
+
+@login_required
+def api_approval_pending_stats(request):
+    try:
+        pending_queryset = GoodsEntry.objects.filter(
+            is_deleted=False, approval_status='pending'
+        )
+
+        if not request.user.is_staff:
+            pending_queryset = pending_queryset.filter(submitted_by=request.user)
+
+        total_pending = pending_queryset.count()
+
+        overdue_count = 0
+        for obj in pending_queryset:
+            if obj.is_overdue():
+                overdue_count += 1
+
+        return JsonResponse({
+            'total_pending': total_pending,
+            'overdue_count': overdue_count,
+            'is_staff': request.user.is_staff,
+        })
     except Exception as e:
         return JsonResponse({'success': False, 'message': str(e)}, status=400)
