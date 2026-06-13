@@ -8,7 +8,7 @@ from django.utils import timezone
 from django.db.models import Q
 import json
 
-from .models import CategoryArchive, VarietyArchive, UnitArchive, GoodsEntry, Unit
+from .models import CategoryArchive, VarietyArchive, UnitArchive, GoodsEntry, Unit, MaterialCategory
 
 
 def user_login(request):
@@ -64,6 +64,11 @@ def goods_entry_page(request):
 @login_required
 def unit_management_page(request):
     return render(request, 'pages/unit_management.html', {'title': '单位管理', 'page_name': 'unit-management'})
+
+
+@login_required
+def category_management_page(request):
+    return render(request, 'pages/category_management.html', {'title': '品类管理', 'page_name': 'category-management'})
 
 
 @login_required
@@ -321,6 +326,223 @@ def api_unit_delete(request, pk):
         return JsonResponse({
             'success': True,
             'message': f'单位 {obj.name} 删除成功',
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)
+
+
+def _build_category_tree(categories, parent_id=None):
+    tree = []
+    for cat in categories:
+        if (parent_id is None and cat.parent_id is None) or (cat.parent_id == parent_id):
+            children = _build_category_tree(categories, cat.id)
+            ref_info = cat.get_reference_info()
+            tree.append({
+                'id': cat.id,
+                'code': cat.code,
+                'name': cat.name,
+                'parent_id': cat.parent_id,
+                'sort_weight': cat.sort_weight,
+                'icon': cat.icon,
+                'description': cat.description,
+                'has_children': len(children) > 0,
+                'is_referenced': ref_info['is_referenced'],
+                'reference_info': ref_info,
+                'children': children,
+                'created_at': cat.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+            })
+    return tree
+
+
+@login_required
+def api_material_categories_tree(request):
+    try:
+        all_cats = MaterialCategory.objects.all().order_by('sort_weight', 'id')
+        tree = _build_category_tree(list(all_cats))
+        return JsonResponse(tree, safe=False)
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)
+
+
+@login_required
+def api_material_categories_flat(request):
+    try:
+        parent_only = request.GET.get('parent_only', '') == 'true'
+        if parent_only:
+            queryset = MaterialCategory.objects.filter(parent__isnull=True)
+        else:
+            queryset = MaterialCategory.objects.all()
+
+        queryset = queryset.order_by('sort_weight', 'id')
+        items = []
+        for obj in queryset:
+            ref_info = obj.get_reference_info()
+            items.append({
+                'id': obj.id,
+                'code': obj.code,
+                'name': obj.name,
+                'parent_id': obj.parent_id,
+                'sort_weight': obj.sort_weight,
+                'icon': obj.icon,
+                'description': obj.description,
+                'has_children': obj.has_children(),
+                'is_referenced': ref_info['is_referenced'],
+                'reference_info': ref_info,
+                'created_at': obj.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+            })
+        return JsonResponse({'items': items})
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)
+
+
+@require_POST
+@login_required
+def api_material_category_create(request):
+    try:
+        data = json.loads(request.body)
+        code = data.get('code', '').strip()
+        name = data.get('name', '').strip()
+        parent_id = data.get('parent_id')
+        sort_weight = data.get('sort_weight', 0)
+        icon = data.get('icon', '').strip()
+        description = data.get('description', '').strip()
+
+        if not code:
+            return JsonResponse({'success': False, 'message': '品类编码不能为空'}, status=400)
+        if not name:
+            return JsonResponse({'success': False, 'message': '品类名称不能为空'}, status=400)
+        if MaterialCategory.objects.filter(code=code).exists():
+            return JsonResponse({'success': False, 'message': '品类编码已存在'}, status=400)
+
+        parent = None
+        if parent_id:
+            parent = MaterialCategory.objects.filter(pk=parent_id).first()
+            if not parent:
+                return JsonResponse({'success': False, 'message': '上级品类不存在'}, status=400)
+            if parent.parent_id is not None:
+                return JsonResponse({'success': False, 'message': '品类层级最多支持两级，子品类下不可再创建'}, status=400)
+
+        obj = MaterialCategory.objects.create(
+            code=code,
+            name=name,
+            parent=parent,
+            sort_weight=sort_weight,
+            icon=icon,
+            description=description,
+        )
+        return JsonResponse({
+            'success': True,
+            'id': obj.id,
+            'message': f'品类 {obj.name} 创建成功',
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)
+
+
+@require_POST
+@login_required
+def api_material_category_update(request, pk):
+    try:
+        obj = get_object_or_404(MaterialCategory, pk=pk)
+        data = json.loads(request.body)
+
+        new_code = data.get('code', obj.code).strip()
+        if new_code != obj.code:
+            if MaterialCategory.objects.filter(code=new_code).exclude(pk=pk).exists():
+                return JsonResponse({'success': False, 'message': '品类编码已存在'}, status=400)
+            obj.code = new_code
+
+        parent_id = data.get('parent_id', obj.parent_id)
+        if parent_id != obj.parent_id:
+            if parent_id:
+                parent = MaterialCategory.objects.filter(pk=parent_id).first()
+                if not parent:
+                    return JsonResponse({'success': False, 'message': '上级品类不存在'}, status=400)
+                if parent.parent_id is not None:
+                    return JsonResponse({'success': False, 'message': '品类层级最多支持两级'}, status=400)
+                if parent_id == pk:
+                    return JsonResponse({'success': False, 'message': '不能将自己设为上级品类'}, status=400)
+            obj.parent_id = parent_id
+
+        obj.name = data.get('name', obj.name).strip()
+        obj.sort_weight = data.get('sort_weight', obj.sort_weight)
+        obj.icon = data.get('icon', obj.icon).strip()
+        obj.description = data.get('description', obj.description).strip()
+
+        if not obj.name:
+            return JsonResponse({'success': False, 'message': '品类名称不能为空'}, status=400)
+
+        obj.save()
+        return JsonResponse({
+            'success': True,
+            'message': f'品类 {obj.name} 更新成功',
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)
+
+
+@require_POST
+@login_required
+def api_material_category_delete(request, pk):
+    try:
+        obj = get_object_or_404(MaterialCategory, pk=pk)
+        ref_info = obj.get_reference_info()
+
+        reasons = []
+        if ref_info['has_children']:
+            reasons.append(f'存在 {ref_info["children_count"]} 个子品类')
+        if ref_info['variety_count'] > 0:
+            reasons.append(f'被 {ref_info["variety_count"]} 个品种档案引用')
+        if ref_info['unit_count'] > 0:
+            reasons.append(f'被 {ref_info["unit_count"]} 个单位档案引用')
+        if ref_info['goods_entry_count'] > 0:
+            reasons.append(f'被 {ref_info["goods_entry_count"]} 条入库记录引用')
+
+        if reasons:
+            return JsonResponse({
+                'success': False,
+                'message': '删除被拦截：' + '；'.join(reasons),
+                'reference_info': ref_info,
+            }, status=400)
+
+        name = obj.name
+        obj.delete()
+        return JsonResponse({
+            'success': True,
+            'message': f'品类 {name} 删除成功',
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)
+
+
+@require_POST
+@login_required
+def api_material_category_reorder(request, pk):
+    try:
+        obj = get_object_or_404(MaterialCategory, pk=pk)
+        data = json.loads(request.body)
+        direction = data.get('direction', 'up')
+
+        siblings = MaterialCategory.objects.filter(parent_id=obj.parent_id).order_by('sort_weight', 'id')
+        sibling_list = list(siblings)
+        current_idx = next((i for i, s in enumerate(sibling_list) if s.id == obj.id), -1)
+
+        if direction == 'up':
+            if current_idx <= 0:
+                return JsonResponse({'success': False, 'message': '已是第一个'}, status=400)
+            swap_obj = sibling_list[current_idx - 1]
+        else:
+            if current_idx >= len(sibling_list) - 1:
+                return JsonResponse({'success': False, 'message': '已是最后一个'}, status=400)
+            swap_obj = sibling_list[current_idx + 1]
+
+        obj.sort_weight, swap_obj.sort_weight = swap_obj.sort_weight, obj.sort_weight
+        obj.save(update_fields=['sort_weight'])
+        swap_obj.save(update_fields=['sort_weight'])
+
+        return JsonResponse({
+            'success': True,
+            'message': '排序更新成功',
         })
     except Exception as e:
         return JsonResponse({'success': False, 'message': str(e)}, status=400)

@@ -7,7 +7,7 @@ urlpatterns = [
     path('', views.dashboard, name='dashboard'),
     path('goods-entry/', views.goods_entry_page, name='goods-entry'),
     path('unit-management/', views.unit_management_page, name='unit-management'),
-    path('category-management/', views.menu_page, {'page_name': 'category-management'}, name='category-management'),
+    path('category-management/', views.category_management_page, name='category-management'),
     path('variety-management/', views.menu_page, {'page_name': 'variety-management'}, name='variety-management'),
     path('query-export/', views.menu_page, {'page_name': 'query-export'}, name='query-export'),
     path('daily-report/', views.menu_page, {'page_name': 'daily-report'}, name='daily-report'),
@@ -27,4 +27,11 @@ urlpatterns = [
     path('api/units/create/', views.api_unit_create, name='api-unit-create'),
     path('api/units/<int:pk>/update/', views.api_unit_update, name='api-unit-update'),
     path('api/units/<int:pk>/delete/', views.api_unit_delete, name='api-unit-delete'),
+
+    path('api/material-categories/tree/', views.api_material_categories_tree, name='api-material-categories-tree'),
+    path('api/material-categories/flat/', views.api_material_categories_flat, name='api-material-categories-flat'),
+    path('api/material-categories/create/', views.api_material_category_create, name='api-material-category-create'),
+    path('api/material-categories/<int:pk>/update/', views.api_material_category_update, name='api-material-category-update'),
+    path('api/material-categories/<int:pk>/delete/', views.api_material_category_delete, name='api-material-category-delete'),
+    path('api/material-categories/<int:pk>/reorder/', views.api_material_category_reorder, name='api-material-category-reorder'),
 ]

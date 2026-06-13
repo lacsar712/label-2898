@@ -42,11 +42,76 @@ class CategoryArchive(models.Model):
         return self.name
 
 
+class MaterialCategory(models.Model):
+    code = models.CharField(max_length=50, unique=True, verbose_name='品类编码')
+    name = models.CharField(max_length=100, verbose_name='品类名称')
+    parent = models.ForeignKey(
+        'self',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='children',
+        verbose_name='上级品类'
+    )
+    sort_weight = models.IntegerField(default=0, verbose_name='排序号')
+    icon = models.CharField(max_length=50, blank=True, default='', verbose_name='图标标识')
+    description = models.TextField(blank=True, default='', verbose_name='描述备注')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
+
+    class Meta:
+        verbose_name = '物资品类'
+        verbose_name_plural = '物资品类'
+        ordering = ['sort_weight', 'id']
+
+    def __str__(self):
+        return f'[{self.code}] {self.name}'
+
+    def clean(self):
+        if self.parent:
+            max_depth = 1
+            depth = 0
+            ancestor = self.parent
+            while ancestor:
+                depth += 1
+                if depth > max_depth:
+                    raise ValidationError({'parent': '品类层级最多支持两级'})
+                ancestor = ancestor.parent
+
+    def has_children(self):
+        return self.children.exists()
+
+    def get_reference_info(self):
+        info = {
+            'has_children': self.has_children(),
+            'children_count': self.children.count() if self.has_children() else 0,
+            'variety_count': self.variety_set.count(),
+            'unit_count': self.unitarchive_set.count(),
+            'goods_entry_count': GoodsEntry.objects.filter(category=self.name).count(),
+        }
+        info['is_referenced'] = (
+            info['has_children'] or
+            info['variety_count'] > 0 or
+            info['unit_count'] > 0 or
+            info['goods_entry_count'] > 0
+        )
+        return info
+
+    def is_referenced(self):
+        info = self.get_reference_info()
+        return info['is_referenced']
+
+
 class VarietyArchive(models.Model):
     name = models.CharField(max_length=50, verbose_name='品种名称')
     category = models.ForeignKey(
         CategoryArchive, on_delete=models.CASCADE,
-        related_name='varieties', verbose_name='所属品类'
+        related_name='varieties', verbose_name='所属品类档案'
+    )
+    material_category = models.ForeignKey(
+        MaterialCategory, on_delete=models.CASCADE,
+        related_name='variety_set', null=True, blank=True,
+        verbose_name='所属物资品类'
     )
     unit = models.ForeignKey(
         Unit, on_delete=models.SET_NULL, null=True, blank=True,
@@ -68,7 +133,12 @@ class UnitArchive(models.Model):
     name = models.CharField(max_length=20, verbose_name='单位名称')
     category = models.ForeignKey(
         CategoryArchive, on_delete=models.CASCADE,
-        related_name='units', verbose_name='所属品类'
+        related_name='units', verbose_name='所属品类档案'
+    )
+    material_category = models.ForeignKey(
+        MaterialCategory, on_delete=models.CASCADE,
+        related_name='unitarchive_set', null=True, blank=True,
+        verbose_name='所属物资品类'
     )
     unit_ref = models.ForeignKey(
         Unit, on_delete=models.SET_NULL, null=True, blank=True,
