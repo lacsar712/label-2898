@@ -331,3 +331,101 @@ class GoodsEntry(models.Model):
         else:
             seq = 1
         return f'{prefix}{seq:04d}'
+
+
+class GoodsOutbound(models.Model):
+    STATUS_CHOICES = [
+        ('effective', '有效'),
+        ('voided', '已作废'),
+    ]
+
+    outbound_no = models.CharField(max_length=20, unique=True, verbose_name='出库单号')
+    material_name = models.CharField(max_length=100, verbose_name='物资名称')
+    category = models.CharField(max_length=50, verbose_name='品类')
+    variety = models.CharField(max_length=50, verbose_name='品种')
+    quantity = models.DecimalField(max_digits=12, decimal_places=2, verbose_name='数量')
+    unit = models.CharField(max_length=20, verbose_name='计量单位')
+    outbound_date = models.DateField(verbose_name='出库日期')
+    handler = models.CharField(max_length=50, verbose_name='经办人')
+    receiver = models.CharField(max_length=100, blank=True, default='', verbose_name='领取人')
+    storage_area = models.CharField(max_length=50, verbose_name='出库库区')
+    remarks = models.TextField(blank=True, default='', verbose_name='备注')
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='effective', verbose_name='单据状态')
+    is_deleted = models.BooleanField(default=False, verbose_name='软删除')
+    voided_at = models.DateTimeField(null=True, blank=True, verbose_name='作废时间')
+    voided_by = models.CharField(max_length=50, blank=True, default='', verbose_name='作废人')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
+
+    class Meta:
+        verbose_name = '货物出库'
+        verbose_name_plural = '货物出库'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return self.outbound_no
+
+    @staticmethod
+    def generate_outbound_no():
+        today = datetime.now()
+        date_str = today.strftime('%Y%m%d')
+        prefix = f'CK{date_str}'
+        existing = GoodsOutbound.objects.filter(outbound_no__startswith=prefix).order_by('-outbound_no')
+        if existing.exists():
+            last_no = existing.first().outbound_no
+            try:
+                seq = int(last_no[-4:]) + 1
+            except ValueError:
+                seq = 1
+        else:
+            seq = 1
+        return f'{prefix}{seq:04d}'
+
+
+class QueryTemplate(models.Model):
+    TEMPLATE_TYPE_CHOICES = [
+        ('query_export', '查询导出'),
+        ('daily_report', '每日报表'),
+    ]
+
+    name = models.CharField(max_length=100, verbose_name='模板名称')
+    template_type = models.CharField(max_length=30, choices=TEMPLATE_TYPE_CHOICES, default='query_export', verbose_name='模板类型')
+    filter_data = models.TextField(blank=True, default='', verbose_name='筛选条件JSON')
+    user = models.CharField(max_length=100, blank=True, default='', verbose_name='所属用户')
+    is_default = models.BooleanField(default=False, verbose_name='是否默认')
+    sort_weight = models.IntegerField(default=0, verbose_name='排序权重')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
+
+    class Meta:
+        verbose_name = '查询模板'
+        verbose_name_plural = '查询模板'
+        ordering = ['sort_weight', '-created_at']
+
+    def __str__(self):
+        return self.name
+
+
+class DailyReport(models.Model):
+    report_date = models.DateField(unique=True, verbose_name='报表日期')
+    inbound_count = models.IntegerField(default=0, verbose_name='入库笔数')
+    inbound_quantity = models.DecimalField(max_digits=14, decimal_places=2, default=0, verbose_name='入库总量')
+    outbound_count = models.IntegerField(default=0, verbose_name='出库笔数')
+    outbound_quantity = models.DecimalField(max_digits=14, decimal_places=2, default=0, verbose_name='出库总量')
+    net_change = models.DecimalField(max_digits=14, decimal_places=2, default=0, verbose_name='库存变动净值')
+    snapshot_data = models.TextField(blank=True, default='', verbose_name='快照数据JSON')
+    generated_at = models.DateTimeField(auto_now_add=True, verbose_name='生成时间')
+    generated_by = models.CharField(max_length=100, blank=True, default='', verbose_name='生成人')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
+
+    class Meta:
+        verbose_name = '每日报表'
+        verbose_name_plural = '每日报表'
+        ordering = ['-report_date']
+
+    def __str__(self):
+        return f'日报-{self.report_date.strftime("%Y-%m-%d")}'
+
+    def calculate_net_change(self):
+        self.net_change = self.inbound_quantity - self.outbound_quantity
+        return self.net_change

@@ -8,7 +8,7 @@ from django.utils import timezone
 from django.db.models import Q
 import json
 
-from .models import CategoryArchive, VarietyArchive, UnitArchive, GoodsEntry, Unit, MaterialCategory, Variety, GoodsOutbound, QueryTemplate
+from .models import CategoryArchive, VarietyArchive, UnitArchive, GoodsEntry, Unit, MaterialCategory, Variety, GoodsOutbound, QueryTemplate, DailyReport
 
 
 def user_login(request):
@@ -1190,6 +1190,323 @@ def api_query_template_detail(request, pk):
             'sort_weight': tpl.sort_weight,
             'created_at': tpl.created_at.strftime('%Y-%m-%d %H:%M:%S'),
             'updated_at': tpl.updated_at.strftime('%Y-%m-%d %H:%M:%S'),
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)
+
+
+@login_required
+def daily_report_page(request):
+    return render(request, 'pages/daily_report.html', {'title': '每日报表', 'page_name': 'daily-report'})
+
+
+@require_POST
+@login_required
+def api_daily_report_generate(request):
+    try:
+        from django.db.models import Sum, Count
+        from datetime import datetime
+
+        data = json.loads(request.body) if request.body else {}
+        report_date_str = data.get('report_date', '')
+        overwrite = data.get('overwrite', False)
+
+        if not report_date_str:
+            report_date = timezone.now().date()
+        else:
+            report_date = datetime.strptime(report_date_str, '%Y-%m-%d').date()
+
+        existing = DailyReport.objects.filter(report_date=report_date).first()
+        if existing and not overwrite:
+            return JsonResponse({
+                'success': False,
+                'message': '该日期日报已存在，是否覆盖更新？',
+                'exists': True,
+            }, status=400)
+
+        inbound_entries = GoodsEntry.objects.filter(
+            entry_date=report_date,
+            status='effective',
+            is_deleted=False
+        )
+        inbound_agg = inbound_entries.aggregate(
+            count=Count('id'),
+            total=Sum('quantity')
+        )
+        inbound_count = inbound_agg['count'] or 0
+        inbound_quantity = float(inbound_agg['total'] or 0)
+
+        outbound_entries = GoodsOutbound.objects.filter(
+            outbound_date=report_date,
+            status='effective',
+            is_deleted=False
+        )
+        outbound_agg = outbound_entries.aggregate(
+            count=Count('id'),
+            total=Sum('quantity')
+        )
+        outbound_count = outbound_agg['count'] or 0
+        outbound_quantity = float(outbound_agg['total'] or 0)
+
+        net_change = inbound_quantity - outbound_quantity
+
+        inbound_list = []
+        for entry in inbound_entries:
+            inbound_list.append({
+                'id': entry.id,
+                'doc_no': entry.entry_no,
+                'doc_type': 'inbound',
+                'doc_type_display': '入库',
+                'material_name': entry.material_name,
+                'category': entry.category,
+                'variety': entry.variety,
+                'quantity': str(entry.quantity),
+                'unit': entry.unit,
+                'handler': entry.handler,
+                'supplier': entry.supplier,
+                'storage_area': entry.storage_area,
+                'remarks': entry.remarks,
+                'status': entry.status,
+                'status_display': entry.get_status_display(),
+            })
+
+        outbound_list = []
+        for entry in outbound_entries:
+            outbound_list.append({
+                'id': entry.id,
+                'doc_no': entry.outbound_no,
+                'doc_type': 'outbound',
+                'doc_type_display': '出库',
+                'material_name': entry.material_name,
+                'category': entry.category,
+                'variety': entry.variety,
+                'quantity': str(entry.quantity),
+                'unit': entry.unit,
+                'handler': entry.handler,
+                'receiver': entry.receiver,
+                'storage_area': entry.storage_area,
+                'remarks': entry.remarks,
+                'status': entry.status,
+                'status_display': entry.get_status_display(),
+            })
+
+        snapshot = {
+            'inbound_list': inbound_list,
+            'outbound_list': outbound_list,
+        }
+
+        username = request.user.username if request.user.is_authenticated else ''
+
+        if existing:
+            existing.inbound_count = inbound_count
+            existing.inbound_quantity = inbound_quantity
+            existing.outbound_count = outbound_count
+            existing.outbound_quantity = outbound_quantity
+            existing.net_change = net_change
+            existing.snapshot_data = json.dumps(snapshot, ensure_ascii=False)
+            existing.generated_by = username
+            existing.save()
+            report = existing
+            message = f'{report_date.strftime("%Y-%m-%d")} 日报已更新'
+        else:
+            report = DailyReport.objects.create(
+                report_date=report_date,
+                inbound_count=inbound_count,
+                inbound_quantity=inbound_quantity,
+                outbound_count=outbound_count,
+                outbound_quantity=outbound_quantity,
+                net_change=net_change,
+                snapshot_data=json.dumps(snapshot, ensure_ascii=False),
+                generated_by=username,
+            )
+            message = f'{report_date.strftime("%Y-%m-%d")} 日报生成成功'
+
+        return JsonResponse({
+            'success': True,
+            'message': message,
+            'report': {
+                'id': report.id,
+                'report_date': report.report_date.strftime('%Y-%m-%d'),
+                'inbound_count': report.inbound_count,
+                'inbound_quantity': str(report.inbound_quantity),
+                'outbound_count': report.outbound_count,
+                'outbound_quantity': str(report.outbound_quantity),
+                'net_change': str(report.net_change),
+                'generated_at': report.generated_at.strftime('%Y-%m-%d %H:%M:%S'),
+                'generated_by': report.generated_by,
+                'snapshot': snapshot,
+            }
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)
+
+
+@login_required
+def api_daily_report_detail(request):
+    try:
+        from datetime import datetime
+
+        report_date_str = request.GET.get('report_date', '')
+        if not report_date_str:
+            report_date = timezone.now().date()
+        else:
+            report_date = datetime.strptime(report_date_str, '%Y-%m-%d').date()
+
+        report = DailyReport.objects.filter(report_date=report_date).first()
+        if not report:
+            return JsonResponse({
+                'success': False,
+                'message': '该日期尚未生成日报',
+                'exists': False,
+            }, status=404)
+
+        snapshot = json.loads(report.snapshot_data) if report.snapshot_data else {}
+
+        return JsonResponse({
+            'id': report.id,
+            'report_date': report.report_date.strftime('%Y-%m-%d'),
+            'inbound_count': report.inbound_count,
+            'inbound_quantity': str(report.inbound_quantity),
+            'outbound_count': report.outbound_count,
+            'outbound_quantity': str(report.outbound_quantity),
+            'net_change': str(report.net_change),
+            'generated_at': report.generated_at.strftime('%Y-%m-%d %H:%M:%S'),
+            'generated_by': report.generated_by,
+            'updated_at': report.updated_at.strftime('%Y-%m-%d %H:%M:%S'),
+            'snapshot': snapshot,
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)
+
+
+@login_required
+def api_daily_report_list(request):
+    try:
+        from datetime import datetime
+
+        year_month = request.GET.get('year_month', '')
+        if not year_month:
+            year_month = timezone.now().strftime('%Y-%m')
+
+        year, month = map(int, year_month.split('-'))
+        queryset = DailyReport.objects.filter(
+            report_date__year=year,
+            report_date__month=month
+        ).order_by('-report_date')
+
+        items = []
+        for report in queryset:
+            items.append({
+                'id': report.id,
+                'report_date': report.report_date.strftime('%Y-%m-%d'),
+                'inbound_count': report.inbound_count,
+                'inbound_quantity': str(report.inbound_quantity),
+                'outbound_count': report.outbound_count,
+                'outbound_quantity': str(report.outbound_quantity),
+                'net_change': str(report.net_change),
+                'generated_at': report.generated_at.strftime('%Y-%m-%d %H:%M:%S'),
+                'generated_by': report.generated_by,
+            })
+
+        return JsonResponse({
+            'items': items,
+            'year_month': year_month,
+            'total': len(items),
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)
+
+
+@login_required
+def api_daily_report_calendar_marks(request):
+    try:
+        from datetime import datetime
+
+        year_month = request.GET.get('year_month', '')
+        if not year_month:
+            year_month = timezone.now().strftime('%Y-%m')
+
+        year, month = map(int, year_month.split('-'))
+        reports = DailyReport.objects.filter(
+            report_date__year=year,
+            report_date__month=month
+        ).values_list('report_date', flat=True)
+
+        marked_dates = [d.strftime('%Y-%m-%d') for d in reports]
+
+        return JsonResponse({
+            'year_month': year_month,
+            'marked_dates': marked_dates,
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)
+
+
+@login_required
+def api_daily_report_transactions(request):
+    try:
+        from datetime import datetime
+
+        report_date_str = request.GET.get('report_date', '')
+        if not report_date_str:
+            report_date = timezone.now().date()
+        else:
+            report_date = datetime.strptime(report_date_str, '%Y-%m-%d').date()
+
+        inbound_entries = GoodsEntry.objects.filter(
+            entry_date=report_date,
+            status='effective',
+            is_deleted=False
+        ).order_by('entry_no')
+
+        outbound_entries = GoodsOutbound.objects.filter(
+            outbound_date=report_date,
+            status='effective',
+            is_deleted=False
+        ).order_by('outbound_no')
+
+        transactions = []
+
+        for entry in inbound_entries:
+            transactions.append({
+                'id': entry.id,
+                'doc_no': entry.entry_no,
+                'doc_type': 'inbound',
+                'doc_type_display': '入库',
+                'material_name': entry.material_name,
+                'category': entry.category,
+                'variety': entry.variety,
+                'quantity': str(entry.quantity),
+                'unit': entry.unit,
+                'handler': entry.handler,
+                'counterparty': entry.supplier,
+                'storage_area': entry.storage_area,
+                'remarks': entry.remarks,
+            })
+
+        for entry in outbound_entries:
+            transactions.append({
+                'id': entry.id,
+                'doc_no': entry.outbound_no,
+                'doc_type': 'outbound',
+                'doc_type_display': '出库',
+                'material_name': entry.material_name,
+                'category': entry.category,
+                'variety': entry.variety,
+                'quantity': str(entry.quantity),
+                'unit': entry.unit,
+                'handler': entry.handler,
+                'counterparty': entry.receiver,
+                'storage_area': entry.storage_area,
+                'remarks': entry.remarks,
+            })
+
+        transactions.sort(key=lambda x: x['doc_no'])
+
+        return JsonResponse({
+            'report_date': report_date.strftime('%Y-%m-%d'),
+            'transactions': transactions,
+            'total': len(transactions),
         })
     except Exception as e:
         return JsonResponse({'success': False, 'message': str(e)}, status=400)

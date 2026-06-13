@@ -10,7 +10,7 @@ urlpatterns = [
     path('category-management/', views.category_management_page, name='category-management'),
     path('variety-management/', views.variety_management_page, name='variety-management'),
     path('query-export/', views.query_export_page, name='query-export'),
-    path('daily-report/', views.menu_page, {'page_name': 'daily-report'}, name='daily-report'),
+    path('daily-report/', views.daily_report_page, name='daily-report'),
     path('warning/', views.menu_page, {'page_name': 'warning'}, name='warning'),
     path('approval/', views.menu_page, {'page_name': 'approval'}, name='approval'),
     path('attendance-staff/', views.menu_page, {'page_name': 'attendance-staff'}, name='attendance-staff'),
@@ -53,4 +53,10 @@ urlpatterns = [
     path('api/query-templates/<int:pk>/', views.api_query_template_detail, name='api-query-template-detail'),
     path('api/query-templates/<int:pk>/update/', views.api_query_template_update, name='api-query-template-update'),
     path('api/query-templates/<int:pk>/delete/', views.api_query_template_delete, name='api-query-template-delete'),
+
+    path('api/daily-report/generate/', views.api_daily_report_generate, name='api-daily-report-generate'),
+    path('api/daily-report/detail/', views.api_daily_report_detail, name='api-daily-report-detail'),
+    path('api/daily-report/list/', views.api_daily_report_list, name='api-daily-report-list'),
+    path('api/daily-report/calendar-marks/', views.api_daily_report_calendar_marks, name='api-daily-report-calendar-marks'),
+    path('api/daily-report/transactions/', views.api_daily_report_transactions, name='api-daily-report-transactions'),
 ]

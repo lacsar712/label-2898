@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/daily_report.css">
+{% endblock %}
+
+{% block content %}
+<div class="dr-page">
+    <div class="dr-tabs">
+        <div class="dr-tab active" data-tab="daily">
+            <i class="bi bi-calendar-date"></i> 日报
+        </div>
+        <div class="dr-tab dr-tab-disabled" data-tab="weekly" title="功能开发中">
+            <i class="bi bi-calendar-week"></i> 周报
+            <span class="dr-tab-badge">即将上线</span>
+        </div>
+        <div class="dr-tab dr-tab-disabled" data-tab="monthly" title="功能开发中">
+            <i class="bi bi-calendar-month"></i> 月报
+            <span class="dr-tab-badge">即将上线</span>
+        </div>
+    </div>
+
+    <div class="dr-tab-content active" id="dr-tab-daily">
+        <div class="dr-main-layout">
+            <div class="dr-sidebar">
+                <div class="dr-calendar-section">
+                    <div class="dr-calendar-header">
+                        <button id="dr-cal-prev" class="dr-cal-nav-btn">
+                            <i class="bi bi-chevron-left"></i>
+                        </button>
+                        <span id="dr-cal-title" class="dr-cal-title"></span>
+                        <button id="dr-cal-next" class="dr-cal-nav-btn">
+                            <i class="bi bi-chevron-right"></i>
+                        </button>
+                    </div>
+                    <div class="dr-calendar-weekdays">
+                        <span>日</span>
+                        <span>一</span>
+                        <span>二</span>
+                        <span>三</span>
+                        <span>四</span>
+                        <span>五</span>
+                        <span>六</span>
+                    </div>
+                    <div id="dr-calendar-days" class="dr-calendar-days"></div>
+                    <div class="dr-calendar-today">
+                        <button id="dr-cal-today-btn" class="btn-tech dr-today-btn">
+                            <i class="bi bi-calendar-check"></i> 今天
+                        </button>
+                    </div>
+                </div>
+
+                <div class="dr-history-section">
+                    <div class="dr-section-title">
+                        <i class="bi bi-archive"></i> 历史归档
+                    </div>
+                    <div id="dr-history-list" class="dr-history-list"></div>
+                </div>
+            </div>
+
+            <div class="dr-content">
+                <div class="dr-content-header">
+                    <div class="dr-date-display">
+                        <i class="bi bi-calendar3"></i>
+                        <span id="dr-current-date"></span>
+                        <span id="dr-report-status" class="dr-report-status"></span>
+                    </div>
+                    <div class="dr-actions">
+                        <button id="dr-generate-btn" class="btn-tech">
+                            <i class="bi bi-magic"></i> 生成日报
+                        </button>
+                        <button id="dr-refresh-btn" class="btn-tech btn-cancel">
+                            <i class="bi bi-arrow-clockwise"></i> 刷新
+                        </button>
+                    </div>
+                </div>
+
+                <div class="dr-stats-cards">
+                    <div class="dr-stat-card dr-card-inbound">
+                        <div class="dr-card-icon">
+                            <i class="bi bi-box-seam"></i>
+                        </div>
+                        <div class="dr-card-info">
+                            <div class="dr-card-label">入库笔数</div>
+                            <div id="dr-inbound-count" class="dr-card-value">--</div>
+                        </div>
+                        <div class="dr-card-sub">
+                            <span class="dr-card-sub-label">入库总量</span>
+                            <span id="dr-inbound-quantity" class="dr-card-sub-value">--</span>
+                        </div>
+                    </div>
+
+                    <div class="dr-stat-card dr-card-outbound">
+                        <div class="dr-card-icon">
+                            <i class="bi bi-box-arrow-up"></i>
+                        </div>
+                        <div class="dr-card-info">
+                            <div class="dr-card-label">出库笔数</div>
+                            <div id="dr-outbound-count" class="dr-card-value">--</div>
+                        </div>
+                        <div class="dr-card-sub">
+                            <span class="dr-card-sub-label">出库总量</span>
+                            <span id="dr-outbound-quantity" class="dr-card-sub-value">--</span>
+                        </div>
+                    </div>
+
+                    <div class="dr-stat-card dr-card-net">
+                        <div class="dr-card-icon">
+                            <i class="bi bi-graph-up-arrow"></i>
+                        </div>
+                        <div class="dr-card-info">
+                            <div class="dr-card-label">库存变动净值</div>
+                            <div id="dr-net-change" class="dr-card-value">--</div>
+                        </div>
+                        <div class="dr-card-sub">
+                            <span class="dr-card-sub-label">变动趋势</span>
+                            <span id="dr-net-trend" class="dr-card-sub-value">--</span>
+                        </div>
+                    </div>
+
+                    <div class="dr-stat-card dr-card-total">
+                        <div class="dr-card-icon">
+                            <i class="bi bi-receipt"></i>
+                        </div>
+                        <div class="dr-card-info">
+                            <div class="dr-card-label">单据总数</div>
+                            <div id="dr-total-count" class="dr-card-value">--</div>
+                        </div>
+                        <div class="dr-card-sub">
+                            <span class="dr-card-sub-label">生成时间</span>
+                            <span id="dr-generated-at" class="dr-card-sub-value">--</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="dr-transactions-section">
+                    <div class="dr-section-header">
+                        <div class="dr-section-title">
+                            <i class="bi bi-list-ul"></i> 出入库明细
+                        </div>
+                        <div class="dr-filter-tabs">
+                            <button class="dr-filter-tab active" data-filter="all">全部</button>
+                            <button class="dr-filter-tab" data-filter="inbound">入库</button>
+                            <button class="dr-filter-tab" data-filter="outbound">出库</button>
+                        </div>
+                    </div>
+
+                    <div class="dr-table-wrapper">
+                        <table class="dr-table">
+                            <thead>
+                                <tr>
+                                    <th>单据号</th>
+                                    <th>类型</th>
+                                    <th>物资名称</th>
+                                    <th>品类</th>
+                                    <th>品种</th>
+                                    <th>数量</th>
+                                    <th>单位</th>
+                                    <th>经办人</th>
+                                    <th>往来方</th>
+                                    <th>库区</th>
+                                    <th>备注</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dr-transactions-body"></tbody>
+                        </table>
+                    </div>
+
+                    <div id="dr-empty-hint" class="dr-empty-hint" style="display:none;">
+                        <i class="bi bi-inbox"></i>
+                        <p>当日暂无出入库记录</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="dr-generate-modal" class="modal-overlay">
+    <div class="modal-tech dr-modal-inner">
+        <h3 id="dr-modal-title">生成日报</h3>
+        <p id="dr-modal-message">确定要生成所选日期的日报吗？</p>
+        <div class="modal-btns">
+            <button id="dr-modal-cancel" class="btn-tech btn-cancel">取消</button>
+            <button id="dr-modal-confirm" class="btn-tech">确定生成</button>
+        </div>
+    </div>
+</div>
+
+<input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/js/daily_report.js"></script>
+{% endblock %}
