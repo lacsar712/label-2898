@@ -1,3 +1,5 @@
+const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
 const state = {
     currentTab: 'pending',
     currentPage: 1,
@@ -192,7 +194,9 @@ async function loadList() {
             page_size: state.pageSize,
         });
 
-        const response = await fetch(`/api/approval/list/?${params}`);
+        const response = await fetch(`/api/approval/list/?${params}`, {
+            headers: { 'X-CSRFToken': csrfToken }
+        });
         const data = await response.json();
 
         if (data.success === false) {
@@ -377,7 +381,9 @@ async function viewDetail(id) {
     showLoader();
 
     try {
-        const response = await fetch(`/api/approval/${id}/`);
+        const response = await fetch(`/api/approval/${id}/`, {
+            headers: { 'X-CSRFToken': csrfToken }
+        });
         const data = await response.json();
 
         if (data.success === false) {
@@ -480,7 +486,10 @@ async function handleApprove() {
     try {
         const response = await fetch(`/api/approval/${state.currentDetailId}/approve/`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
             body: JSON.stringify({ opinion })
         });
 
@@ -525,7 +534,10 @@ async function handleConfirmReject() {
     try {
         const response = await fetch(`/api/approval/${state.rejectTargetId}/reject/`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
             body: JSON.stringify({ opinion: reason })
         });
 
@@ -566,7 +578,10 @@ async function handleBatchApprove() {
     try {
         const response = await fetch('/api/approval/batch-approve/', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
             body: JSON.stringify({
                 ids: state.batchTargetIds,
                 opinion: opinion
