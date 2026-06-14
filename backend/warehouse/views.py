@@ -2671,6 +2671,10 @@ def outbound_staff_page(request):
 @login_required
 def api_outbound_staff_list(request):
     try:
+        from datetime import date, timedelta
+        today = date.today()
+        warning_cutoff = today + timedelta(days=7)
+
         queryset = OutboundStaff.objects.all()
 
         name = request.GET.get('name', '').strip()
@@ -2684,6 +2688,22 @@ def api_outbound_staff_list(request):
             queryset = queryset.filter(status=status)
         if area:
             queryset = queryset.filter(authorized_areas__icontains=area)
+
+        if auth_status == 'disabled':
+            queryset = queryset.filter(status='inactive')
+        elif auth_status == 'expired':
+            queryset = queryset.filter(status='active', authorization_end_date__lt=today)
+        elif auth_status == 'warning':
+            queryset = queryset.filter(
+                status='active',
+                authorization_end_date__gte=today,
+                authorization_end_date__lte=warning_cutoff
+            )
+        elif auth_status == 'normal':
+            queryset = queryset.filter(
+                status='active',
+                authorization_end_date__gt=warning_cutoff
+            )
 
         queryset = queryset.order_by('-created_at')
 
@@ -2716,24 +2736,12 @@ def api_outbound_staff_list(request):
                 'updated_at': obj.updated_at.strftime('%Y-%m-%d %H:%M:%S'),
             })
 
-        if auth_status:
-            filtered_items = [item for item in items if item['auth_status'] == auth_status]
-            items = filtered_items
-            total = len(filtered_items)
-            total_pages = (total + page_size - 1) // page_size if total > 0 else 1
-            start_idx = (page_num - 1) * page_size
-            end_idx = start_idx + page_size
-            items = items[start_idx:end_idx]
-        else:
-            total = paginator.count
-            total_pages = paginator.num_pages
-
         return JsonResponse({
             'items': items,
-            'total': total,
+            'total': paginator.count,
             'page': page_num,
             'page_size': page_size,
-            'total_pages': total_pages,
+            'total_pages': paginator.num_pages,
             'storage_areas': [
                 {'value': value, 'label': label}
                 for value, label in OutboundStaff.STORAGE_AREA_CHOICES

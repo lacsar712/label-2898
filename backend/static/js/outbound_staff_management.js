@@ -40,6 +40,12 @@
     let editingId = null;
     let renewingId = null;
     let storageAreas = [];
+    let appliedFilters = {
+        name: '',
+        area: '',
+        status: '',
+        auth_status: ''
+    };
 
     function init() {
         loadStaffList();
@@ -49,6 +55,7 @@
 
     function bindEvents() {
         filterBtn.addEventListener('click', function () {
+            appliedFilters = collectFilters();
             currentPage = 1;
             loadStaffList();
         });
@@ -58,6 +65,7 @@
             document.getElementById('osm-filter-area').value = '';
             document.getElementById('osm-filter-status').value = '';
             document.getElementById('osm-filter-auth').value = '';
+            appliedFilters = { name: '', area: '', status: '', auth_status: '' };
             currentPage = 1;
             loadStaffList();
         });
@@ -150,20 +158,24 @@
         });
     }
 
+    function collectFilters() {
+        return {
+            name: document.getElementById('osm-filter-name').value.trim(),
+            area: document.getElementById('osm-filter-area').value,
+            status: document.getElementById('osm-filter-status').value,
+            auth_status: document.getElementById('osm-filter-auth').value
+        };
+    }
+
     function loadStaffList() {
         const params = new URLSearchParams();
         params.set('page', currentPage);
         params.set('page_size', '10');
 
-        const name = document.getElementById('osm-filter-name').value.trim();
-        const area = document.getElementById('osm-filter-area').value;
-        const status = document.getElementById('osm-filter-status').value;
-        const authStatus = document.getElementById('osm-filter-auth').value;
-
-        if (name) params.set('name', name);
-        if (area) params.set('area', area);
-        if (status) params.set('status', status);
-        if (authStatus) params.set('auth_status', authStatus);
+        if (appliedFilters.name) params.set('name', appliedFilters.name);
+        if (appliedFilters.area) params.set('area', appliedFilters.area);
+        if (appliedFilters.status) params.set('status', appliedFilters.status);
+        if (appliedFilters.auth_status) params.set('auth_status', appliedFilters.auth_status);
 
         fetch(`/api/outbound-staff/?${params.toString()}`, {
             headers: { 'X-CSRFToken': csrfToken }
