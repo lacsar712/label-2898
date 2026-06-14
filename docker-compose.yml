@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   web:
     build: ./backend
@@ -13,8 +11,10 @@ services:
       - DB_USER=postgres
       - DB_PASS=postgres
       - DB_HOST=db
+      - DB_PORT=5432
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
   db:
     image: postgres:15-alpine
@@ -24,6 +24,11 @@ services:
       POSTGRES_PASSWORD: postgres
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d warehouse_db"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
 
 volumes:
   postgres_data:

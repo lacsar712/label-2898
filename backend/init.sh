@@ -1,11 +1,22 @@
 #!/bin/bash
+set -e
 
-echo "Waiting for database..."
-# 简单的等待逻辑
-sleep 5
+DB_HOST="${DB_HOST:-db}"
+DB_PORT="${DB_PORT:-5432}"
+
+echo "Waiting for database at ${DB_HOST}:${DB_PORT}..."
+for i in $(seq 1 60); do
+    if python -c "import socket,sys; s=socket.socket(); s.settimeout(2); \
+sys.exit(0) if s.connect_ex(('${DB_HOST}', ${DB_PORT}))==0 else sys.exit(1)"; then
+        echo "Database is up."
+        break
+    fi
+    echo "  not ready yet, retry ${i}/60..."
+    sleep 2
+done
 
 echo "Applying migrations..."
-python manage.py migrate
+python manage.py migrate --noinput
 
 echo "Creating superuser if not exists..."
 python manage.py shell <<EOF
