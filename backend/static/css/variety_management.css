@@ -589,18 +589,23 @@
     background: rgba(0, 20, 40, 0.5);
     border: 1px solid rgba(0, 210, 255, 0.2);
     border-radius: 6px;
-    padding: 15px;
+    padding: 20px 15px;
     text-align: center;
-    margin-bottom: 15px;
+    margin-bottom: 0;
+}
+
+.vm-stock-main {
+    margin-bottom: 10px;
 }
 
 .vm-stock-value {
     font-family: 'Consolas', 'Monaco', monospace;
-    font-size: 2rem;
+    font-size: 2.2rem;
     font-weight: bold;
     color: var(--primary-blue);
     text-shadow: 0 0 15px rgba(0, 210, 255, 0.5);
-    margin-bottom: 5px;
+    margin-bottom: 3px;
+    line-height: 1.2;
 }
 
 .vm-stock-unit {
@@ -614,7 +619,97 @@
     border-radius: 20px;
     font-size: 0.8rem;
     font-weight: 600;
-    margin-top: 10px;
+    margin-bottom: 12px;
+}
+
+.vm-stock-trend {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    margin-bottom: 10px;
+}
+
+.vm-stock-trend.vm-stock-trend-safe {
+    background: rgba(0, 255, 136, 0.1);
+    color: #00ff88;
+    border: 1px solid rgba(0, 255, 136, 0.3);
+}
+
+.vm-stock-trend.vm-stock-trend-warn {
+    background: rgba(255, 165, 2, 0.1);
+    color: #ffa502;
+    border: 1px solid rgba(255, 165, 2, 0.3);
+}
+
+.vm-stock-warning-info {
+    display: flex;
+    justify-content: center;
+    gap: 4px;
+    font-size: 0.78rem;
+    color: rgba(255, 255, 255, 0.5);
+    padding-top: 10px;
+    border-top: 1px solid rgba(0, 210, 255, 0.1);
+}
+
+.vm-transaction-summary {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.vm-summary-item {
+    flex: 1;
+    background: rgba(0, 20, 40, 0.4);
+    border: 1px solid rgba(0, 210, 255, 0.1);
+    border-radius: 4px;
+    padding: 10px;
+    text-align: center;
+}
+
+.vm-summary-label {
+    display: block;
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.5);
+    margin-bottom: 5px;
+}
+
+.vm-summary-value {
+    display: block;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 1.1rem;
+    font-weight: bold;
+}
+
+.vm-summary-value.vm-summary-in {
+    color: #00ff88;
+}
+
+.vm-summary-value.vm-summary-out {
+    color: #ff6b6b;
+}
+
+.vm-transaction-type.vm-type-in {
+    background: rgba(0, 255, 136, 0.15);
+    color: #00ff88;
+    border: 1px solid rgba(0, 255, 136, 0.3);
+}
+
+.vm-transaction-type.vm-type-out {
+    background: rgba(255, 107, 107, 0.15);
+    color: #ff6b6b;
+    border: 1px solid rgba(255, 107, 107, 0.3);
+}
+
+.vm-transaction-quantity.vm-qty-in {
+    color: #00ff88;
+}
+
+.vm-transaction-quantity.vm-qty-out {
+    color: #ff6b6b;
 }
 
 .vm-stock-out {
@@ -785,6 +880,13 @@
     font-size: 0.78rem;
     color: rgba(255, 255, 255, 0.4);
     font-style: italic;
+}
+
+.vm-form-hint.vm-code-hint {
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.35);
+    line-height: 1.5;
+    margin-top: 8px;
 }
 
 .vm-switch-wrapper {

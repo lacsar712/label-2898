@@ -301,6 +301,11 @@
 
     function handleCategoryChange() {
         const categoryId = inputCategory.value;
+
+        if (editingId) {
+            return;
+        }
+
         if (!categoryId) {
             inputCodePrefix.value = '';
             inputCodeSuffix.value = '';
@@ -490,21 +495,61 @@
 
     function renderDetailSidebar(data) {
         const stockStatusClass = getStockStatusClass(data.stock_status?.level);
+        const warningValue = parseFloat(data.min_stock_warning) || 0;
+        const currentStock = parseFloat(data.current_stock) || 0;
+
+        let stockTrendHtml = '';
+        if (warningValue > 0) {
+            const diff = currentStock - warningValue;
+            const diffPercent = warningValue > 0 ? Math.round((currentStock / warningValue) * 100) : 0;
+            const trendClass = diff >= 0 ? 'vm-stock-trend-safe' : 'vm-stock-trend-warn';
+            const trendIcon = diff >= 0 ? 'bi-check-circle' : 'bi-exclamation-triangle';
+            const trendText = diff >= 0 ? '库存充足' : '低于预警线';
+            stockTrendHtml = `
+                <div class="vm-stock-trend ${trendClass}">
+                    <i class="bi ${trendIcon}"></i>
+                    <span>${trendText} (${diffPercent}%)</span>
+                </div>
+            `;
+        }
 
         let transactionsHtml = '';
+        let summaryHtml = '';
         if (data.transactions && data.transactions.length > 0) {
+            const totalIn = data.transactions
+                .filter(t => t.type === '入库')
+                .reduce((sum, t) => sum + parseFloat(t.quantity), 0);
+            const totalOut = data.transactions
+                .filter(t => t.type === '出库')
+                .reduce((sum, t) => sum + parseFloat(t.quantity), 0);
+
+            summaryHtml = `
+                <div class="vm-transaction-summary">
+                    <div class="vm-summary-item">
+                        <span class="vm-summary-label">近期入库</span>
+                        <span class="vm-summary-value vm-summary-in">+${totalIn.toFixed(2)}</span>
+                    </div>
+                    <div class="vm-summary-item">
+                        <span class="vm-summary-label">近期出库</span>
+                        <span class="vm-summary-value vm-summary-out">-${totalOut.toFixed(2)}</span>
+                    </div>
+                </div>
+            `;
+
             transactionsHtml = data.transactions.map(t => `
                 <div class="vm-transaction-item">
                     <div class="vm-transaction-header">
                         <span class="vm-transaction-no">${t.entry_no}</span>
-                        <span class="vm-transaction-type">${t.type}</span>
+                        <span class="vm-transaction-type ${t.type === '入库' ? 'vm-type-in' : 'vm-type-out'}">${t.type}</span>
                     </div>
                     <div class="vm-transaction-info">
                         <span>数量</span>
-                        <span class="vm-transaction-quantity">+${t.quantity} ${t.unit}</span>
+                        <span class="vm-transaction-quantity ${t.type === '入库' ? 'vm-qty-in' : 'vm-qty-out'}">
+                            ${t.type === '入库' ? '+' : '-'}${t.quantity} ${t.unit || ''}
+                        </span>
                     </div>
                     <div class="vm-transaction-info">
-                        <span>供应商</span>
+                        <span>供应商/领用</span>
                         <span>${t.supplier || '-'}</span>
                     </div>
                     <div class="vm-transaction-meta">
@@ -519,10 +564,20 @@
 
         detailContent.innerHTML = `
             <div class="vm-detail-section">
+                <div class="vm-detail-section-title">
+                    <i class="bi bi-database"></i> 当前库存快照
+                </div>
                 <div class="vm-stock-card">
-                    <div class="vm-stock-value">${data.current_stock}</div>
-                    <div class="vm-stock-unit">${data.stock_unit || ''}</div>
+                    <div class="vm-stock-main">
+                        <div class="vm-stock-value">${data.current_stock}</div>
+                        <div class="vm-stock-unit">${data.stock_unit || data.unit_abbr || ''}</div>
+                    </div>
                     <div class="vm-stock-status-badge ${stockStatusClass}">${data.stock_status?.label || '未知'}</div>
+                    ${stockTrendHtml}
+                    <div class="vm-stock-warning-info">
+                        <span>预警值：${data.min_stock_warning}</span>
+                        <span>${data.stock_unit || data.unit_abbr || ''}</span>
+                    </div>
                 </div>
             </div>
 
@@ -555,8 +610,8 @@
                     <span class="vm-detail-info-value">${data.shelf_life_days || 0} 天</span>
                 </div>
                 <div class="vm-detail-info-row">
-                    <span class="vm-detail-info-label">预警值</span>
-                    <span class="vm-detail-info-value">${data.min_stock_warning}</span>
+                    <span class="vm-detail-info-label">最低库存预警值</span>
+                    <span class="vm-detail-info-value">${data.min_stock_warning} ${data.stock_unit || data.unit_abbr || ''}</span>
                 </div>
                 <div class="vm-detail-info-row">
                     <span class="vm-detail-info-label">默认库区</span>
@@ -578,8 +633,9 @@
 
             <div class="vm-detail-section">
                 <div class="vm-detail-section-title">
-                    <i class="bi bi-clock-history"></i> 近期出入库记录
+                    <i class="bi bi-clock-history"></i> 近期出入库摘要
                 </div>
+                ${summaryHtml}
                 <div class="vm-transaction-list">
                     ${transactionsHtml}
                 </div>
@@ -702,6 +758,9 @@
             remarks: inputRemarks.value.trim(),
         };
 
+        const isEditing = !!editingId;
+        const editedId = editingId;
+
         UI.showLoader();
 
         const url = editingId
@@ -722,7 +781,7 @@
                 if (result.success) {
                     UI.toast(result.message);
                     closeFormModal();
-                    loadInitialData();
+                    refreshDataAndDetail(isEditing, editedId);
                 } else {
                     UI.toast(result.message || '操作失败', 'error');
                 }
@@ -733,7 +792,18 @@
             });
     }
 
+    function refreshDataAndDetail(keepDetail, detailId) {
+        const hadDetail = keepDetail && detailId && selectedVarietyId === parseInt(detailId);
+
+        loadVarieties();
+
+        if (hadDetail) {
+            loadVarietyDetail(detailId);
+        }
+    }
+
     function handleDelete(id, name) {
+        const varietyId = parseInt(id);
         UI.confirmDanger(
             '删除确认',
             `确定要删除品种「${name}」吗？此操作不可恢复！`,
@@ -749,10 +819,11 @@
                         UI.hideLoader();
                         if (result.success) {
                             UI.toast(result.message);
-                            if (selectedVarietyId === parseInt(id)) {
+                            const isCurrentDetail = selectedVarietyId === varietyId;
+                            if (isCurrentDetail) {
                                 closeDetailSidebar();
                             }
-                            loadInitialData();
+                            loadVarieties();
                         } else {
                             UI.toast(result.message || '删除失败', 'error');
                         }
