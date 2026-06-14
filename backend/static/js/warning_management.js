@@ -62,6 +62,7 @@
 
     function bindEvents() {
         filterBtn.addEventListener('click', function () {
+            syncLevelFromSelect();
             currentPage = 1;
             loadWarningList();
         });
@@ -93,9 +94,14 @@
 
         filterKeyword.addEventListener('keypress', function (e) {
             if (e.key === 'Enter') {
+                syncLevelFromSelect();
                 currentPage = 1;
                 loadWarningList();
             }
+        });
+
+        filterLevel.addEventListener('change', function () {
+            syncLevelFromSelect();
         });
 
         statCards.forEach(card => {
@@ -108,8 +114,7 @@
                     clearStatCardActive();
                 } else {
                     currentLevelFilter = level;
-                    clearStatCardActive();
-                    this.classList.add('active');
+                    setStatCardActive(level);
                 }
 
                 filterLevel.value = currentLevelFilter;
@@ -175,6 +180,26 @@
 
     function clearStatCardActive() {
         statCards.forEach(card => card.classList.remove('active'));
+    }
+
+    function setStatCardActive(level) {
+        clearStatCardActive();
+        if (!level) return;
+        statCards.forEach(card => {
+            if (card.dataset.level === level) {
+                card.classList.add('active');
+            }
+        });
+    }
+
+    function syncLevelFromSelect() {
+        const selectLevel = filterLevel.value || '';
+        currentLevelFilter = selectLevel;
+        if (selectLevel) {
+            setStatCardActive(selectLevel);
+        } else {
+            clearStatCardActive();
+        }
     }
 
     function loadInitialData() {
