@@ -17,6 +17,10 @@
     let totalRecordPages = 1;
     let currentStaff = null;
 
+    let activeDateStartFilter = '';
+    let activeDateEndFilter = '';
+    let activeAttStatusFilter = '';
+
     function init() {
         if (!staffId) {
             UI.toast('缺少人员ID参数', 'error');
@@ -28,6 +32,9 @@
 
     function bindEvents() {
         filterBtn.addEventListener('click', function () {
+            activeDateStartFilter = document.getElementById('asd-filter-date-start').value.trim();
+            activeDateEndFilter = document.getElementById('asd-filter-date-end').value.trim();
+            activeAttStatusFilter = document.getElementById('asd-filter-att-status').value;
             currentRecordPage = 1;
             loadStaffDetail();
         });
@@ -36,6 +43,9 @@
             document.getElementById('asd-filter-date-start').value = '';
             document.getElementById('asd-filter-date-end').value = '';
             document.getElementById('asd-filter-att-status').value = '';
+            activeDateStartFilter = '';
+            activeDateEndFilter = '';
+            activeAttStatusFilter = '';
             currentRecordPage = 1;
             loadStaffDetail();
         });
@@ -60,13 +70,9 @@
         params.set('record_page', currentRecordPage);
         params.set('record_page_size', '20');
 
-        const dateStart = document.getElementById('asd-filter-date-start').value.trim();
-        const dateEnd = document.getElementById('asd-filter-date-end').value.trim();
-        const attStatus = document.getElementById('asd-filter-att-status').value;
-
-        if (dateStart) params.set('date_start', dateStart);
-        if (dateEnd) params.set('date_end', dateEnd);
-        if (attStatus) params.set('att_status', attStatus);
+        if (activeDateStartFilter) params.set('date_start', activeDateStartFilter);
+        if (activeDateEndFilter) params.set('date_end', activeDateEndFilter);
+        if (activeAttStatusFilter) params.set('att_status', activeAttStatusFilter);
 
         UI.showLoader();
         fetch(`/api/attendance-staff/${staffId}/?${params.toString()}`, {

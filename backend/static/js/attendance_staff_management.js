@@ -45,6 +45,10 @@
     let editingId = null;
     let selectedFile = null;
 
+    let activeNameFilter = '';
+    let activeCompanyFilter = '';
+    let activeStatusFilter = '';
+
     function init() {
         loadStaffList();
         loadFilterOptions();
@@ -53,6 +57,9 @@
 
     function bindEvents() {
         filterBtn.addEventListener('click', function () {
+            activeNameFilter = document.getElementById('asm-filter-name').value.trim();
+            activeCompanyFilter = document.getElementById('asm-filter-company').value;
+            activeStatusFilter = document.getElementById('asm-filter-status').value;
             currentPage = 1;
             loadStaffList();
         });
@@ -61,6 +68,9 @@
             document.getElementById('asm-filter-name').value = '';
             document.getElementById('asm-filter-company').value = '';
             document.getElementById('asm-filter-status').value = '';
+            activeNameFilter = '';
+            activeCompanyFilter = '';
+            activeStatusFilter = '';
             currentPage = 1;
             loadStaffList();
             loadFilterOptions();
@@ -166,13 +176,9 @@
         params.set('page', currentPage);
         params.set('page_size', '10');
 
-        const name = document.getElementById('asm-filter-name').value.trim();
-        const company = document.getElementById('asm-filter-company').value;
-        const status = document.getElementById('asm-filter-status').value;
-
-        if (name) params.set('name', name);
-        if (company) params.set('company', company);
-        if (status) params.set('status', status);
+        if (activeNameFilter) params.set('name', activeNameFilter);
+        if (activeCompanyFilter) params.set('company', activeCompanyFilter);
+        if (activeStatusFilter) params.set('status', activeStatusFilter);
 
         fetch(`/api/attendance-staff/?${params.toString()}`, {
             headers: { 'X-CSRFToken': csrfToken }
