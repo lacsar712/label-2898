@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/category_management.css">
+{% endblock %}
+
+{% block content %}
+<div class="cm-page">
+    <div class="cm-section">
+        <div class="cm-section-header">
+            <div class="cm-header-left">
+                <i class="bi bi-diagram-3"></i>
+                <span>品类管理</span>
+            </div>
+            <div class="cm-header-right">
+                <div class="cm-search-box">
+                    <i class="bi bi-search cm-search-icon"></i>
+                    <input type="text" id="cm-search-input" class="cm-search-input" placeholder="搜索编码 / 名称...">
+                    <button id="cm-search-clear" class="cm-search-clear" style="display:none;">
+                        <i class="bi bi-x-circle"></i>
+                    </button>
+                </div>
+                <button id="cm-expand-all-btn" class="btn-tech btn-cancel" style="padding:8px 15px;">
+                    <i class="bi bi-arrows-expand"></i> 展开全部
+                </button>
+                <button id="cm-collapse-all-btn" class="btn-tech btn-cancel" style="padding:8px 15px;">
+                    <i class="bi bi-arrows-collapse"></i> 折叠全部
+                </button>
+                <button id="cm-add-root-btn" class="btn-tech">
+                    <i class="bi bi-plus-lg"></i> 新增一级品类
+                </button>
+            </div>
+        </div>
+
+        <div class="cm-table-wrapper">
+            <table class="cm-table">
+                <thead>
+                    <tr>
+                        <th style="width:40px;"></th>
+                        <th style="width:40px;">图标</th>
+                        <th>品类编码</th>
+                        <th>品类名称</th>
+                        <th>上级品类</th>
+                        <th>排序号</th>
+                        <th>描述备注</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="cm-table-body">
+                </tbody>
+            </table>
+        </div>
+
+        <div id="cm-empty-hint" class="cm-empty-hint" style="display:none;">
+            <i class="bi bi-inbox"></i>
+            <p>暂无品类数据，请点击"新增一级品类"开始创建</p>
+        </div>
+    </div>
+</div>
+
+<div id="cm-form-modal" class="modal-overlay">
+    <div class="modal-tech cm-modal">
+        <h3 id="cm-modal-title">新增品类</h3>
+        <form id="cm-form" class="cm-form">
+            {% csrf_token %}
+            <div class="cm-form-row">
+                <div class="cm-form-group cm-form-group-half">
+                    <label>上级品类</label>
+                    <select id="cm-input-parent" class="input-tech">
+                        <option value="">-- 无（作为一级品类）--</option>
+                    </select>
+                </div>
+                <div class="cm-form-group cm-form-group-half">
+                    <label>品类编码 <span class="cm-required">*</span></label>
+                    <div class="cm-code-wrapper">
+                        <input type="text" id="cm-input-parent-prefix" class="input-tech cm-prefix-input" placeholder="前缀" readonly>
+                        <input type="text" id="cm-input-code" class="input-tech cm-suffix-input" placeholder="输入编码" required>
+                    </div>
+                    <div class="cm-code-hint">完整编码：<span id="cm-code-preview">-</span></div>
+                </div>
+            </div>
+            <div class="cm-form-group">
+                <label>品类名称 <span class="cm-required">*</span></label>
+                <input type="text" id="cm-input-name" class="input-tech" placeholder="输入品类名称" required>
+            </div>
+            <div class="cm-form-row">
+                <div class="cm-form-group cm-form-group-half">
+                    <label>排序号</label>
+                    <input type="number" id="cm-input-weight" class="input-tech" value="0" placeholder="数字越小越靠前">
+                </div>
+                <div class="cm-form-group cm-form-group-half">
+                    <label>图标标识</label>
+                    <input type="text" id="cm-input-icon" class="input-tech" placeholder="如 bi-box-seam（选填）">
+                </div>
+            </div>
+            <div class="cm-form-group">
+                <label>描述备注</label>
+                <textarea id="cm-input-desc" class="input-tech" rows="3" placeholder="输入描述备注（选填）"></textarea>
+            </div>
+            <div class="modal-btns">
+                <button type="button" id="cm-form-cancel" class="btn-tech btn-cancel">取消</button>
+                <button type="submit" class="btn-tech">确定</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/js/category_management.js"></script>
+{% endblock %}

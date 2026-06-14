@@ -7,6 +7,9 @@
     const collapseAllBtn = document.getElementById('cm-collapse-all-btn');
     const addRootBtn = document.getElementById('cm-add-root-btn');
 
+    const searchInput = document.getElementById('cm-search-input');
+    const searchClear = document.getElementById('cm-search-clear');
+
     const formModal = document.getElementById('cm-form-modal');
     const form = document.getElementById('cm-form');
     const formCancelBtn = document.getElementById('cm-form-cancel');
@@ -24,6 +27,8 @@
     let categoryTree = [];
     let flatCategories = [];
     let expandedIds = new Set();
+    let preSearchExpandedIds = null;
+    let searchKeyword = '';
     let selectedId = null;
     let editingId = null;
     let editingMode = 'create';
@@ -48,6 +53,9 @@
         form.addEventListener('submit', handleFormSubmit);
         inputCode.addEventListener('input', updateCodePreview);
         inputParent.addEventListener('change', handleParentChange);
+
+        searchInput.addEventListener('input', handleSearchInput);
+        searchClear.addEventListener('click', clearSearch);
 
         tableBody.addEventListener('click', handleTableClick);
         tableBody.addEventListener('dragstart', handleDragStart);
@@ -88,6 +96,11 @@
         }
         emptyHint.style.display = 'none';
 
+        if (searchKeyword) {
+            renderFilteredTable();
+            return;
+        }
+
         function renderNodes(nodes, depth) {
             nodes.forEach(node => {
                 const tr = createRow(node, depth);
@@ -104,7 +117,128 @@
         renderNodes(categoryTree, 0);
     }
 
-    function createRow(node, depth) {
+    function handleSearchInput() {
+        const keyword = searchInput.value.trim().toLowerCase();
+        searchKeyword = keyword;
+
+        if (keyword) {
+            searchClear.style.display = 'flex';
+            if (preSearchExpandedIds === null) {
+                preSearchExpandedIds = new Set(expandedIds);
+            }
+            const matchedIds = findMatchedNodeIds(keyword);
+            const ancestorIds = collectAncestorIds(matchedIds);
+            expandedIds = new Set([...matchedIds, ...ancestorIds]);
+        } else {
+            clearSearch();
+            return;
+        }
+
+        renderTable();
+    }
+
+    function clearSearch() {
+        searchInput.value = '';
+        searchKeyword = '';
+        searchClear.style.display = 'none';
+
+        if (preSearchExpandedIds !== null) {
+            expandedIds = preSearchExpandedIds;
+            preSearchExpandedIds = null;
+        }
+
+        renderTable();
+    }
+
+    function findMatchedNodeIds(keyword) {
+        const matched = new Set();
+
+        function search(nodes) {
+            nodes.forEach(node => {
+                const codeMatch = node.code.toLowerCase().includes(keyword);
+                const nameMatch = node.name.toLowerCase().includes(keyword);
+                if (codeMatch || nameMatch) {
+                    matched.add(node.id);
+                }
+                if (node.children && node.children.length > 0) {
+                    const childMatches = search(node.children);
+                }
+            });
+        }
+
+        search(categoryTree);
+        return matched;
+    }
+
+    function collectAncestorIds(targetIds) {
+        const ancestors = new Set();
+
+        function findPath(nodes, path) {
+            for (const node of nodes) {
+                const currentPath = [...path, node.id];
+                if (targetIds.has(node.id)) {
+                    path.forEach(id => ancestors.add(id));
+                }
+                if (node.children && node.children.length > 0) {
+                    findPath(node.children, currentPath);
+                }
+            }
+        }
+
+        findPath(categoryTree, []);
+        return ancestors;
+    }
+
+    function renderFilteredTable() {
+        const keyword = searchKeyword;
+        const matchedIds = findMatchedNodeIds(keyword);
+        const ancestorIds = collectAncestorIds(matchedIds);
+        const visibleIds = new Set([...matchedIds, ...ancestorIds]);
+
+        let matchCount = 0;
+
+        function renderNodes(nodes, depth) {
+            nodes.forEach(node => {
+                if (!visibleIds.has(node.id)) return;
+
+                const tr = createRow(node, depth, keyword);
+                tableBody.appendChild(tr);
+                matchCount++;
+
+                if (node.children && node.children.length > 0) {
+                    if (expandedIds.has(node.id)) {
+                        renderNodes(node.children, depth + 1);
+                    }
+                }
+            });
+        }
+
+        renderNodes(categoryTree, 0);
+
+        if (matchCount === 0) {
+            emptyHint.style.display = 'block';
+            emptyHint.querySelector('p').textContent = `未找到匹配「${searchInput.value.trim()}」的品类`;
+        } else {
+            emptyHint.style.display = 'none';
+            emptyHint.querySelector('p').textContent = '暂无品类数据，请点击"新增一级品类"开始创建';
+        }
+    }
+
+    function highlightText(text, keyword) {
+        if (!keyword || !text) return escapeHtml(text);
+        const lowerText = text.toLowerCase();
+        const lowerKeyword = keyword.toLowerCase();
+        const idx = lowerText.indexOf(lowerKeyword);
+        if (idx === -1) return escapeHtml(text);
+
+        const before = text.substring(0, idx);
+        const match = text.substring(idx, idx + keyword.length);
+        const after = text.substring(idx + keyword.length);
+
+        return escapeHtml(before) + '<span class="cm-search-highlight">' + escapeHtml(match) + '</span>' + highlightText(after, keyword);
+    }
+
+    function createRow(node, depth, keyword) {
         const tr = document.createElement('tr');
         tr.dataset.id = node.id;
         tr.dataset.depth = depth;
@@ -119,7 +253,7 @@
         const isExpanded = expandedIds.has(node.id);
         const isHidden = depth > 0 && !isParentExpanded(node.id);
 
-        if (isHidden) {
+        if (isHidden && !keyword) {
             tr.classList.add('cm-row-hidden');
         }
 
@@ -135,6 +269,9 @@
 
         const canDelete = !node.is_referenced && !hasChildren;
 
+        const codeDisplay = keyword ? highlightText(node.code, keyword) : node.code;
+        const nameDisplay = keyword ? highlightText(node.name, keyword) : escapeHtml(node.name);
+
         tr.innerHTML = `
             <td style="padding-left: ${indent + 8}px;">
                 <button class="${toggleBtnClass}" data-id="${node.id}" ${!hasChildren ? 'tabindex="-1"' : ''}>
@@ -142,9 +279,9 @@
                 </button>
             </td>
             <td class="cm-icon-cell">${iconHtml}</td>
-            <td class="cm-code-cell">${node.code}</td>
+            <td class="cm-code-cell">${codeDisplay}</td>
             <td class="cm-name-cell">
-                <span>${node.name}</span>
+                <span>${nameDisplay}</span>
                 ${hasChildren ? `<span class="cm-child-count">(${node.children.length})</span>` : ''}
             </td>
             <td>${parentName || '<span style="color: rgba(255,255,255,0.3);">- 根级 -</span>'}</td>
