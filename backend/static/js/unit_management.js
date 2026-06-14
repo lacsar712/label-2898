@@ -24,6 +24,7 @@
     let currentPage = 1;
     let totalPages = 1;
     let editingId = null;
+    let currentItems = [];
 
     function init() {
         loadUnits();
@@ -89,6 +90,7 @@
             .then(r => r.json())
             .then(data => {
                 totalPages = data.total_pages;
+                currentItems = data.items;
                 renderTable(data.items);
                 pageInfo.textContent = `共 ${data.total} 条 / 第 ${data.page} 页 / 共 ${data.total_pages} 页`;
                 prevBtn.disabled = currentPage <= 1;
@@ -182,31 +184,20 @@
         editingId = id;
         modalTitle.textContent = '编辑单位';
 
-        UI.showLoader();
-        fetch(`/api/units/?page=1&page_size=100`, {
-            headers: { 'X-CSRFToken': csrfToken }
-        })
-            .then(r => r.json())
-            .then(data => {
-                UI.hideLoader();
-                const unit = data.items.find(u => u.id === parseInt(id));
-                if (!unit) {
-                    UI.toast('未找到该单位数据', 'error');
-                    return;
-                }
-                inputCode.value = unit.code;
-                inputCode.disabled = true;
-                inputName.value = unit.name;
-                inputAbbr.value = unit.english_abbr;
-                inputWeight.value = unit.sort_weight;
-                inputActive.checked = unit.is_active;
-                activeLabel.textContent = unit.is_active ? '已启用' : '已禁用';
-                formModal.style.display = 'flex';
-            })
-            .catch(() => {
-                UI.hideLoader();
-                UI.toast('加载单位数据失败', 'error');
-            });
+        const unit = currentItems.find(u => u.id === parseInt(id));
+        if (!unit) {
+            UI.toast('未找到该单位数据', 'error');
+            return;
+        }
+
+        inputCode.value = unit.code;
+        inputCode.disabled = true;
+        inputName.value = unit.name;
+        inputAbbr.value = unit.english_abbr;
+        inputWeight.value = unit.sort_weight;
+        inputActive.checked = unit.is_active;
+        activeLabel.textContent = unit.is_active ? '已启用' : '已禁用';
+        formModal.style.display = 'flex';
     }
 
     function closeFormModal() {
