@@ -123,6 +123,15 @@
         }
     });
 
+    form.addEventListener('reset', function () {
+        setTimeout(() => {
+            varietySelect.innerHTML = '<option value="">-- 先选择品类 --</option>';
+            unitSelect.innerHTML = '<option value="">-- 先选择品类 --</option>';
+            inventoryHint.textContent = '';
+            entryDateInput.value = todayStr();
+        }, 0);
+    });
+
     form.addEventListener('submit', function (e) {
         e.preventDefault();
 
