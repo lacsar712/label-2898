@@ -98,15 +98,19 @@
 
     function prevMonth() {
         currentMonth.setMonth(currentMonth.getMonth() - 1);
+        selectedDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
         renderCalendar();
         loadCalendarMarks();
+        loadReport();
         loadHistoryList();
     }
 
     function nextMonth() {
         currentMonth.setMonth(currentMonth.getMonth() + 1);
+        selectedDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
         renderCalendar();
         loadCalendarMarks();
+        loadReport();
         loadHistoryList();
     }
 

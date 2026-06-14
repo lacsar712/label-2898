@@ -335,6 +335,31 @@
     gap: 10px;
 }
 
+.dr-tip-bar {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 12px 16px;
+    background: rgba(0, 50, 100, 0.1);
+    border: 1px solid rgba(0, 210, 255, 0.08);
+    border-radius: 4px;
+    margin-bottom: 20px;
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.45);
+    line-height: 1.6;
+}
+
+.dr-tip-bar i {
+    color: rgba(0, 210, 255, 0.5);
+    font-size: 1rem;
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+.dr-tip-bar span {
+    flex: 1;
+}
+
 .dr-stats-cards {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
