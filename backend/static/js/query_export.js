@@ -30,6 +30,7 @@
     let totalPages = 1;
     let allCategories = [];
     let allVarieties = [];
+    let lastCommittedFilters = null;
 
     function init() {
         loadFilterOptions();
@@ -99,23 +100,26 @@
         };
     }
 
-    function buildQueryParams(page) {
+    function buildQueryParams(page, filters) {
         const params = new URLSearchParams();
         params.set('page', page || currentPage);
         params.set('page_size', '15');
 
-        const filters = getFilters();
-        Object.keys(filters).forEach(key => {
-            if (filters[key]) {
-                params.set(key, filters[key]);
+        const f = filters || getFilters();
+        Object.keys(f).forEach(key => {
+            if (f[key]) {
+                params.set(key, f[key]);
             }
         });
         return params;
     }
 
-    function doQuery(page) {
+    function doQuery(page, useCommittedFilters) {
         if (page) currentPage = page;
-        const params = buildQueryParams(currentPage);
+        const filtersToSubmit = (useCommittedFilters && lastCommittedFilters)
+            ? lastCommittedFilters
+            : getFilters();
+        const params = buildQueryParams(currentPage, filtersToSubmit);
 
         UI.showLoader();
         fetch(`/api/query-records/?${params.toString()}`, {
@@ -124,6 +128,7 @@
             .then(r => r.json())
             .then(data => {
                 UI.hideLoader();
+                lastCommittedFilters = filtersToSubmit;
                 totalPages = data.total_pages || 1;
                 renderTable(data.items || []);
                 renderSummary(data.summary);
@@ -203,7 +208,8 @@
     });
 
     exportBtn.addEventListener('click', function () {
-        const params = buildQueryParams(1);
+        const filters = lastCommittedFilters || getFilters();
+        const params = buildQueryParams(1, filters);
         params.delete('page');
         params.delete('page_size');
         window.location.href = `/api/query-export/?${params.toString()}`;
@@ -212,14 +218,14 @@
     prevBtn.addEventListener('click', function () {
         if (currentPage > 1) {
             currentPage--;
-            doQuery();
+            doQuery(currentPage, true);
         }
     });
 
     nextBtn.addEventListener('click', function () {
         if (currentPage < totalPages) {
             currentPage++;
-            doQuery();
+            doQuery(currentPage, true);
         }
     });
 

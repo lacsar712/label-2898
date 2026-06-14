@@ -11,6 +11,26 @@
     position: relative;
 }
 
+.qe-hint-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 15px;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border-left: 3px solid rgba(255, 255, 255, 0.2);
+    font-size: 0.78rem;
+    color: rgba(255, 255, 255, 0.4);
+    letter-spacing: 0.5px;
+    line-height: 1.5;
+}
+
+.qe-hint-bar i {
+    font-size: 0.9rem;
+    flex-shrink: 0;
+    color: rgba(255, 255, 255, 0.35);
+}
+
 .qe-section::before {
     content: '';
     position: absolute;
